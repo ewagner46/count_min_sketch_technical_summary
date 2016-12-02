@@ -1,0 +1,229 @@
+\documentclass[11pt]{article}
+\usepackage{epsfig}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amstext}
+\usepackage{amsmath}
+\usepackage{xspace}
+\usepackage{theorem}
+\usepackage{hyperref}
+\usepackage{fullpage}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{titlesec}
+\newlist{todolist}{itemize}{2}
+\setlist[todolist]{label=$\square$}
+\usepackage{pifont}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\cmark}{\ding{51}}%
+\newcommand{\xmark}{\ding{55}}%
+\newcommand{\done}{\rlap{$\square$}{\raisebox{2pt}{\large\hspace{1pt}\cmark}}%
+\setlength\parindent{0pt}
+\hspace{-2.5pt}}
+\newcommand{\wontfix}{\rlap{$\square$}{\large\hspace{1pt}\xmark}}
+ \usepackage[parfill]{parskip} 
+\usepackage{mathtools}
+
+\newcommand{\sq}{\mathit{Q}_i}
+\DeclarePairedDelimiter\ceil{\lceil}{\rceil}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+
+\hypersetup{
+    colorlinks   = true,
+    linkcolor    = magenta
+}
+
+\newcommand{\ra}{\rightarrow}
+
+\title{Title}
+\author{Author}
+\begin{document}
+\maketitle
+\section{Problem Statement}
+Consider a vector $\vec{a}(t) = [a_1(t), \dots, a_i(t), \dots a_n(t)]$ which evolves with time.
+Initally, $\vec{a}$ is the zero vector $\vec{0}$.  We represent the $t$th update as $(i_t, c_t)$,
+which modifies the vector as follows:
+\begin{align}
+    a_{i_t}(t) = a_{i_t}(t - 1) + c_t, \\
+    a_{i'}(t) = a_{i'}(t - 1), \, i' \neq i_t
+\end{align}
+The update $(i_t, c_t)$ modifies the $i$th element by adding $c_t$ to it.
+For all other $a_{i'}$, the vector remains unchanged. 
+
+This vector and its updates represent some stream of 
+data that evolves with time.  There are 2 main models for such a stream:
+\begin{enumerate}
+    \item \textbf{cash-register case:} $c_t > 0$, so every vector element is monotonically
+    increasing.
+    \item \textbf{turnstile case:} $c_t$ can also be negative.  There are two subcases:
+    \begin{enumerate}
+        \item \textbf{non-negative turnstile:} $(i_t, c_t)$ will never cause $a_{i_t}$ to dip
+        below zero. This guarantee can be provided by the application.
+        \item \textbf{general turnstile:} $a_{i_t}$ may become negative.
+    \end{enumerate}
+\end{enumerate}
+\noindent
+The count-min sketch can be used to approximate three types of \textbf{queries}:
+\begin{enumerate}
+    \item \textbf{point query:} $\sq(i)$ is an approximation of the vector 
+    element $a_i(t)$
+    \item \textbf{range query:} $\sq(l, r)$ is an approximation of 
+    $\sum_{i = l}^{r}a_i$. 
+    \item \textbf{inner product query:} $\sq(\vec{a}, \vec{b})$ approximates
+    $\vec{a} \odot \vec{b} = \sum_{i = 1}^{n} a_i b_i$
+\end{enumerate}
+
+These queries can be used 
+
+\section{How to make a count-min sketch}
+Pick a $(\epsilon, \delta)$ pair, where $\epsilon$ will be used to bound error 
+and $\delta$ used to bound probability of error.  Given a logarithm function
+with base $e$, construct an array with width $w$ (number of columns) and 
+depth (number of rows) $d$ where:
+\begin{align}
+    w = \ceil{e/\epsilon}\\
+    d = \ceil{\ln{1/\delta}}
+\end{align}
+We also need $d$ pair-wise independent hash functions
+\begin{align}
+    h_1 \dots h_d : \{1 \dots n\} \ra \{1 \dots w\} 
+\end{align}
+Formally, as in the paper
+\begin{align}
+    count[j, h_j(i_t)] \leftarrow count[j, h_j(i_t)] + c_t     
+\end{align}
+Simply put, when you get an update $(i_t, c_t)$ do the following for each row $1 \leq j \leq d$:
+use the $j$th hash function $h_j$ to find the column $1 \leq i \leq w$. Add $c_t$ to the current
+contents of the element in that row $j$ and column $i$. 
+
+\section{Approximate Point Queries using CM sketches}
+\subsection{Algorithm}
+For the non-negative case (this works in either turnstile non-negative or cash-register case),
+The algorithm to estimate $\hat{a}_i(t) = \sq(i)$ is as follows: \begin{align}
+    \sq(i) = \hat{a}_i = \text{min}_j count[j, h_j(i)]
+\end{align}
+In other words for a given $i_t = i$, $\hat a_i =$ \texttt{Estimate\_Pointer\_Query(CM\_Sketch($\vec{a}, t$), i )}:
+\begin{lstlisting}[escapeinside={(*}{*)}]
+Estimate_Point_Query(CM_Sketch((*$\vec{a}$*), t), i) 
+    make empty multiset S;
+    set j = 1;
+    while j (*$\leq$*) d:
+        S = S (*$\cup$*) count[j, h_j(i)]
+        increment j;
+    return min(S);
+\end{lstlisting}
+
+\textbf{Theorem 1:} The estimate $\hat a_i$ has the following guarantees:
+\begin{enumerate}[label=\textnormal{(\arabic*)}]
+    \item $a_i \leq \hat{a}_i$
+    \item with probability at least $1 - \delta$, 
+    \begin{align}
+        \hat{a}_i \leq a_i + \epsilon ||\vec{a}||_1 
+    \end{align}
+\end{enumerate}
+\subsection{Proof of Theorem 1}
+\textbf{Define} an indicator variable $I_{i, j, k}$ as follows:
+\begin{align}
+    I_{i, j, k} = 
+    \begin{cases}
+        1, & \text{if} h_j(i) = h_j(k) \text{ and } i \neq k \\
+        0, & \text{otherwise}
+    \end{cases}
+\end{align}
+In other words, $I_{i, j, k}$ is 1 if $i$ and $k$, $i \neq k$, have
+a collision under hash function $h_j$.
+
+Since, to begin with, we chose all $h_j$ from a 2-universal hash family
+with range $1 \leq h_j \leq d = \ceil{\frac{e}{\varepsilon}}$ 
+we know that, for $i \neq k$,
+\begin{align}\label{eq:collision-prob}
+    Pr(h_j(i) = h_j(k)) \leq \frac{1}{\text{range}(h_j)} = 1/\ceil{\frac{e}{\varepsilon}} = \ceil{\frac{\varepsilon}{e}}
+\end{align}
+% how do they get rid of ceil??
+by the properties of a 2-universal has function and by our choice of hash function
+range.
+
+\textbf{Define} $X_{i, j}$ as follows:
+\begin{align}
+    X_{i, j} = \sum_{k = 1}^{n}I_{i, j, k} a_k
+\end{align}
+In other words, it is the sum of all corresponding vector values whose indices
+collide with the index of $a_i$ under $h_j$. Trivially, we can then state that
+\begin{align}\label{eq:count-def}
+    count[j, h_j(i)] = a_i + X_{i, j} 
+\end{align}
+Here, we're just saying that the column that $i$ hashes to under $h_j$
+contains the real value $a_i$ after update $t$, combined with all of the other
+$a_k, k \neq i$ after update $t$ that hash to that same spot in that row $j$ under
+$h_j$. This is just how the data structure is made.  Now, 1.a follows because
+we are only considering the case where vector elements are non-negative and thus
+\begin{align}
+    a_i \leq \hat a_i = a_i + X_{i, j}
+\end{align}
+for any possible $X_{i, j}$
+
+Now, to show 1.b, we evaluate:
+\begin{align}
+    E(X_{i, j}) = E\left(\sum_{k = 1}^n I_{i, j, k} a_k\right) 
+\end{align}
+by definition of $X_{i, j}$. The linearity of expectation gives us
+\begin{align}
+    E(\sum_{i = 1}^{n} c_i X_i) = \sum_{i = 1}^{n} c_i E(X_i)
+\end{align}
+where $X_i$s may be dependent. Applying this here, we have:
+\begin{align}
+    E(\sum_{k = 1}^{n} a_k I_{i, j, k}) = \sum_{k = 1}^{n} a_k E(I_{i, j, k}) 
+\end{align}
+% why less than equals, why not just equals?
+We calculated $E(I_{i, j, k}) \leq \ceil{\frac{\varepsilon}{e}}$ above, so 
+we have
+\begin{align}
+    \sum_{k = 1}^{n} a_k E(I_{i, j, k})  \leq\sum_{k = 1}^{n} a_k \ceil{\frac{\varepsilon}{e}}
+\end{align}
+and finally, since $||\vec{a}||_1 = \sum_{k = 1}^{n} |a_k| = \sum_{k = 1}^{n} a_k$
+(all $a_k$ are assumed to be non-negative)
+\begin{align}
+    \sum_{k = 1}^{n} a_k \ceil{\frac{\varepsilon}{e}} = \ceil{\frac{\varepsilon}{e}} ||\vec{a}|||_1 \\
+    \implies E(X_{i, j}) \leq \ceil{\frac{\varepsilon}{e}} ||\vec{a}||_1
+\end{align}
+% why less than equals, why not just equals?
+Now that we know that this is true in expectation, we use Markov to bound the tail bounds:
+\begin{align}
+    Pr[X \geq a] = \frac{1}{a}E(X) 
+\end{align}
+Let $X = \hat{a}_i$, and choose $a = a_i + \varepsilon||a||_1$.  Then,
+\begin{align}
+    Pr[\hat{a}_i > a_i + \varepsilon ||a||_1 = Pr[\forall_{j \cdot} count[j, h_j(i)] > a_i + \varepsilon ||\vec{a}||_1] 
+\end{align}
+since the probability that all values are greater than $a_i + \varepsilon||\vec a||_1$ is equivalent 
+to the probability that the minimum of all values is greater than $a_i + \varepsilon||\vec a||_1$,
+which is the definition of $\hat a_i$. Then, as stated in equation \ref{eq:count-def}, we have
+\begin{align}
+    Pr[\forall_{j \cdot} count[j, h_j(i)] > a_i + \varepsilon ||\vec{a}||_1] = Pr[\forall_{j \cdot} a_i + X_{i, j} > a_i + \varepsilon ||\vec{a}||_1]
+\end{align}
+Then, subtracting $a_i$ from both sides, and using equation \ref{eq:collision-prob} on the $\varepsilon ||\vec{a}||_1$ term, we have:
+\begin{align}
+    Pr[\forall_{j \cdot} a_i + X_{i, j} > a_i + \varepsilon ||\vec{a}||_1]  = Pr[\forall_{j \cdot} X_{i, j} > e E(X_{i, j})]
+\end{align}
+Finally, applying the bounds given by Markov's inequality, we have:
+\begin{align}
+      Pr[\forall_{j \cdot} X_{i, j} > e E(X_{i, j})] \leq \frac{E(X_{i, j})}{a_i + \varepsilon||a||_1} 
+\end{align}
+
+\section{Applications}
+
+\subsection{Quantiles in the turnstile model}
+The count-min sketch can be used to calculate the $\phi$-quantiles in the turnstile model (updates
+ccan be positive or negative). $\phi$-quantiles are the values that split the set of values into
+$\phi$ parts.  The median, for example, is the 2-quantile. Prior work (21) shows that
+$\phi$-quantiles can be approximated using range sums. 
+
+% dyadic range - log n versus 2long
+% 1/e < e-d
+% getting of the ceil?
+% applications?
+% background work
+% how much detail on proofs we aren't proving?
+
+% Emily - Quantiles 
+\end{document}
