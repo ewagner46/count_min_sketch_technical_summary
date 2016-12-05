@@ -36,11 +36,12 @@
 
 \newcommand{\ra}{\rightarrow}
 
-\title{Title}
-\author{Author}
+\title{Technical Summary: ``An Improved Data Stream Summary: The Count-Min Sketch and its Applications'' 
+by Cormode and Muthukrishnan}
+\author{Ravi Gaddipati, Matthew Ige, and Emily Wagner}
 \begin{document}
 \maketitle
-\section{Problem Statement}
+\section{Problem Statement and Overview}
 Consider a vector $\vec{a}(t) = [a_1(t), \dots, a_i(t), \dots a_n(t)]$ which evolves with time.
 Initally, $\vec{a}$ is the zero vector $\vec{0}$.  We represent the $t$th update as $(i_t, c_t)$,
 which modifies the vector as follows:
@@ -51,20 +52,29 @@ which modifies the vector as follows:
 The update $(i_t, c_t)$ modifies the $i$th element by adding $c_t$ to it.
 For all other $a_{i'}$, the vector remains unchanged. 
 
-This vector and its updates represent some stream of 
-data that evolves with time.  There are 2 main models for such a stream:
+This vector and its updates represent some stream of data that evolves with
+time. There are 2 main models for such a stream:
 \begin{enumerate}
     \item \textbf{cash-register case:} $c_t > 0$, so every vector element is monotonically
     increasing.
     \item \textbf{turnstile case:} $c_t$ can also be negative.  There are two subcases:
     \begin{enumerate}
-        \item \textbf{non-negative turnstile:} $(i_t, c_t)$ will never cause $a_{i_t}$ to dip
-        below zero. This guarantee can be provided by the application.
-        \item \textbf{general turnstile:} $a_{i_t}$ may become negative.
+        \item \textbf{non-negative turnstile:} $(i_t, c_t)$ will never cause vector elements
+        $a_{i_t}$ to dip below zero. This guarantee can be provided by the application.
+        \item \textbf{general turnstile:} vector elements $a_{i_t}$ may become negative.
     \end{enumerate}
 \end{enumerate}
-\noindent
-The count-min sketch can be used to approximate three types of \textbf{queries}:
+
+The basic problem we address is to summarize or calculate certain characteristics
+about the stream. We have 2 main requirements. First, the space used by such algorithms should be small; at most polylogarithmic
+in $n$.  This compressed version of the data is called a \textbf{sketch}.  Second, we want to be
+able to process updates to the sketch quickly.  Since we are sublinear in input space,
+we will have to approximate almost any function we want to compute over $\vec{a}$, but
+we still want to specify an approximation parameter $\varepsilon$ and bound the probability
+of error by $\delta$.  
+
+The \textbf{count-min sketch} addresses these requirements and allows us to calculate several characteristics
+of a stream using a single data structure.  It can be used to approximate three types of \textbf{queries}:
 \begin{enumerate}
     \item \textbf{point query:} $\sq(i)$ is an approximation of the vector 
     element $a_i(t)$
@@ -74,7 +84,26 @@ The count-min sketch can be used to approximate three types of \textbf{queries}:
     $\vec{a} \odot \vec{b} = \sum_{i = 1}^{n} a_i b_i$
 \end{enumerate}
 
-These queries can be used 
+These queries have a variety of applications: point and range queries are used in summarizing
+the data distribution and the inner product query can be used to estimate the join size of 
+relations. 
+
+In addition, these queries can be used for more complex data stream functions:
+
+\begin{enumerate}
+    % not integers
+    \item \textbf{$\phi$-quantiles:} The $\phi$-quantiles of the cardinality
+    \begin{align}
+        ||\vec{a}||_1 = \sum_{i = 1}^{n}|a_i(t)|
+    \end{align}
+    are the values that split a multiset of integers $\in [1 \dots n]$ into $\phi$ groups based on
+    their rank $R$.  For example, the median of a set of data is the 2-quantile. The elements are sorted and split as
+    follows.  The $k$th quantile is the element(s) with rank $R = k\phi||\vec{a}||_1$ for $k = 0, \dots,
+    1/\phi$.  The $\varepsilon$-approximation for the $\phi$-quantiles accepts as the $k$-th quantile
+    any integer with rank $(k\phi - \varepsilon)||\vec{a}||_1 \leq R \leq (k\phi +
+    \varepsilon)||\vec{a}||_1$ for a given $\varepsilon < \phi$.
+    \item \textbf{Heavy hitters:}
+\end{enumerate}
 
 \section{State of the art}
 Sketches have been commonly used to help analyze large streams of data. These sketches allow for the following types of queries: $L_1$ and $L_2$ norms, number of distinct items in a sequence, join size of relations, range sum queries, and more. Although these data structures have proved to be very powerful, there are a few key drawbacks that limit the effectiveness of these sketches. A few of the drawbacks are as follows:
@@ -95,40 +124,43 @@ The count-min sketch reduces these problems in the following ways:
 \end{enumerate}
 In particular, notice that the space has been reduce from $\frac{1}{\epsilon^2}$ to $\frac{1}{\epsilon}$ using a CMS, and the time for an update has been reduced from $\frac{1}{\epsilon^2}$ to 1.
 \section{How to make a count-min sketch}
-Pick a $(\epsilon, \delta)$ pair, where $\epsilon$ will be used to bound error 
-and $\delta$ used to bound probability of error.  Given a logarithm function
-with base $e$, construct an array with width $w$ (number of columns) and 
-depth (number of rows) $d$ where:
+Note $e$ is the base of the natural logarithm function, $\ln$. The count-min
+sketch is an array with $w$ columns and $d$ rows where:
 \begin{align}
-    w = \ceil{e/\epsilon}\\
+    w = \ceil{e/\varepsilon}\\
     d = \ceil{\ln{1/\delta}}
 \end{align}
-We also need $d$ pair-wise independent hash functions
+for a given accuracy parameter $\varepsilon$ and probability guarantee $\delta$.
+We need $d$ pair-wise independent hash functions
 \begin{align}
     h_1 \dots h_d : \{1 \dots n\} \ra \{1 \dots w\} 
 \end{align}
-Formally, as in the paper
+The sketch starts with every array entry being 0. The sketch is updated when the $t$th update $\{a_{i_t}, c_t\}$
+arrives as follows
 \begin{align}
     count[j, h_j(i_t)] \leftarrow count[j, h_j(i_t)] + c_t     
 \end{align}
-Simply put, when you get an update $(i_t, c_t)$ do the following for each row $1 \leq j \leq d$:
-use the $j$th hash function $h_j$ to find the column $1 \leq i \leq w$. Add $c_t$ to the current
-contents of the element in that row $j$ and column $i$. 
+In other words, when you get an update $(i_t, c_t)$:
+\begin{enumerate}
+    \item for each row $1 \leq j \leq d$
+    \begin{enumerate}
+        \item add $c_t$ to the $h_j(i)$th column.
+    \end{enumerate}
+\end{enumerate}
 
 \section{Approximate Point Queries using CM sketches}
 \subsection{Algorithm}
-For the non-negative case (this works in either turnstile non-negative or cash-register case),
+For the non-negative case (either the non-negative turnstile or cash-register case),
 The algorithm to estimate $\hat{a}_i(t) = \sq(i)$ is as follows: \begin{align}
     \sq(i) = \hat{a}_i = \text{min}_j count[j, h_j(i)]
 \end{align}
-In other words for a given $i_t = i$, $\hat a_i =$ \texttt{Estimate\_Pointer\_Query(CM\_Sketch($\vec{a}, t$), i )}:
+In other words for a given $i_t = i$, $\hat a_i =$ \texttt{Estimate\_Point\_Query(CM\_Sketch($\vec{a}, t$), i )}:
+
 \begin{lstlisting}[escapeinside={(*}{*)}]
 Estimate_Point_Query(CM_Sketch((*$\vec{a}$*), t), i) 
     make empty multiset S;
-    set j = 1;
-    while j (*$\leq$*) d:
+    for each row j, 1 (*$\leq$*) j (*$\leq$*) d:
         S = S (*$\cup$*) count[j, h_j(i)]
-        increment j;
     return min(S);
 \end{lstlisting}
 
@@ -137,7 +169,7 @@ Estimate_Point_Query(CM_Sketch((*$\vec{a}$*), t), i)
     \item $a_i \leq \hat{a}_i$
     \item with probability at least $1 - \delta$, 
     \begin{align}
-        \hat{a}_i \leq a_i + \epsilon ||\vec{a}||_1 
+        \hat{a}_i \leq a_i + \varepsilon ||\vec{a}||_1 
     \end{align}
 \end{enumerate}
 \subsection{Proof of Theorem 1}
@@ -246,11 +278,33 @@ A range query, denoted as: $\mathcal{Q}(l,r)$, requests the value:
 \section{Applications}
 
 \subsection{Quantiles in the turnstile model}
-The count-min sketch can be used to calculate the $\phi$-quantiles in the turnstile model (updates
-ccan be positive or negative). $\phi$-quantiles are the values that split the set of values into
-$\phi$ parts.  The median, for example, is the 2-quantile. Prior work (21) shows that
-$\phi$-quantiles can be approximated using range sums. 
+The count-min sketch can be used to calculate the $\phi$-quantiles in the turnstile model.
+Prior work (21) shows that $\phi$-quantiles can be approximated using range sums. This is done
+as follows:
+\begin{enumerate}
+    \item For each $k \in {1, 2, \dots, 1/\phi}$
+    \begin{enumerate}
+        \item Find a range sum such that $a[1, r] = k\phi||\vec{a}||_1$. Find $r$ using a binary
+        search on the possible range sums $a[1, \hat{r}]$, where $\hat{r} \in \{1, 2, \dots, n\}$.  $r$ is the
+        $\varepsilon$-approximation for the $k$th $\phi$-quantile.
+    \end{enumerate}
+\end{enumerate}
+The method in [21] uses Random Subset Sums to approximate range sums.  If instead a count-min
+sketch is used to approximate the range sums, better results follow.  
 
+To use a count-min sketch to approximate quantiles in the turnstile model, $\log n$ sketches are kept,
+one for each dyadic range. Each sketch gets accuracy parameter $\varepsilon/\log n$ for an overall accuracy
+bounded by $\varepsilon$. Each sketch gets probability guarantee $\delta\phi/\log n$, for
+an overall probability guarantee of $\delta$ for all $1/\phi$ quantiles. Then, we have the following:
+
+\textbf{Theorem 5:} $\varepsilon$-approximate $\phi$-quantiles can be found with probability at least
+$1 - \delta$ by keeping a data structure with space $O\left(\frac{1}{\varepsilon}
+\log^2(n) \log \left(\frac{\log n}{\phi \delta}\right)\right)$ The time for each insert or delete operation is
+$O\left(\log(n) \log \left(\frac{\log n}{\phi \delta}\right)\right)$, and the time to find each quantile on demand 
+is $O\left(\log(n)\log\left(\frac{\log n}{\phi \delta}\right)\right)$
+
+This improves the existing query time and update by a factor of more than $\frac{34}{\varepsilon^2} \log n$
+The space requirements are improved by a factor of at least $\frac{34}{\varepsilon}$. 
 
 \subsection{Heavy hitters for the cash register case}
 Recall that the cash register case is for positive updates only. We can easily obtain $||\bm{a}||$ at any given point in time because it is simply: $\Sigma_{i=1}^t c_i$.We define a $\phi$ heavy hitter if the estimation of the point query, $Q(i_t) =  \hat a_{it} \geq \phi ||\bm{a}(t))||$. We can do this by maintaining a heap to store the items above the $phi||\bm{a}(t)||$ threshold. On any update, we check the lowest value in the heap, and if the update would be greater than the lowest item, we replace it in the heap. When we are finished with the stream, we do a final scan of all items in the heap, and return the ones which have a value over $\phi||\bm{a}||_1$.\\\\
@@ -258,7 +312,7 @@ Recall that the cash register case is for positive updates only. We can easily o
 \textbf{Proof idea:}\\
 Because we have only positive updates, and a CM sketch will only over estimate, it is not possible to miss any heavy hitter. Thus, we will never omit any heavy hitters. The bound on the error of outputting a non heavy hitter comes from the fact that a single point query outputs the estimate count of an item within $\epsilon$ of the actual value, with probabiltiy $(1-\delta)$. Because the heavy hitter relies purely on the point query, the error bound is the same, and thus, is as above.\\\\
 
-% dyadic range - log n versus 2long
+% dyadic range - log n versus 2log n
 % 1/e < e-d
 % getting of the ceil?
 % applications?
