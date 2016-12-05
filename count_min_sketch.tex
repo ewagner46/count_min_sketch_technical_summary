@@ -11,6 +11,7 @@
 \usepackage{enumitem}
 \usepackage{listings}
 \usepackage{titlesec}
+\usepackage{bm}
 \newlist{todolist}{itemize}{2}
 \setlist[todolist]{label=$\square$}
 \usepackage{pifont}
@@ -75,6 +76,24 @@ The count-min sketch can be used to approximate three types of \textbf{queries}:
 
 These queries can be used 
 
+\section{State of the art}
+Sketches have been commonly used to help analyze large streams of data. These sketches allow for the following types of queries: $L_1$ and $L_2$ norms, number of distinct items in a sequence, join size of relations, range sum queries, and more. Although these data structures have proved to be very powerful, there are a few key drawbacks that limit the effectiveness of these sketches. A few of the drawbacks are as follows:
+\begin{enumerate}
+    \item Common sketches typically have a $\Omega(\frac{1}{\epsilon^2})$ multiplicative factor. For common uses of $\epsilon$, like 0.1 or 0.01, this scaling can quickly become too expensive.
+    \item Many sketches take linear time (in the size of the sketch) to do a single update. 
+    \item Many sketches require $p$-wise independent hash functions. This is not trivial, and is especially difficult in hardware applications.
+    \item Some sketches can only handle one particular query.
+    \item Many sketches use analysis that hides large constants.
+\end{enumerate}
+The count-min sketch reduces these problems in the following ways:
+\begin{enumerate}
+    \item CMS uses space proportional to $\frac{1}{\epsilon}$
+    \item Update time is sublinear with respect to the size
+    \item CMS requires only pairwise independent hash functions
+    \item The sketch can answer several queries and has numerous applications
+    \item All constants are explicit and small.
+\end{enumerate}
+In particular, notice that the space has been reduce from $\frac{1}{\epsilon^2}$ to $\frac{1}{\epsilon}$ using a CMS, and the time for an update has been reduced from $\frac{1}{\epsilon^2}$ to 1.
 \section{How to make a count-min sketch}
 Pick a $(\epsilon, \delta)$ pair, where $\epsilon$ will be used to bound error 
 and $\delta$ used to bound probability of error.  Given a logarithm function
@@ -210,6 +229,20 @@ Finally, applying the bounds given by Markov's inequality, we have:
       Pr[\forall_{j \cdot} X_{i, j} > e E(X_{i, j})] \leq \frac{E(X_{i, j})}{a_i + \varepsilon||a||_1} 
 \end{align}
 
+\section{Range query:}
+A range query, denoted as: $\mathcal{Q}(l,r)$, requests the value:
+\begin{align*}
+    a[l,4] = \Sigma_{i=l}^r a_i
+    \end{align*}
+    And we denote our estimator based on the CM sketch as: $\hat a[l,r]$.\\\\
+    \textbf{Procedure for estimation:}\\
+    Keep $log_2n$ CM sketches. A single range query can be converted into $2log_2n$ dyadic range queries, and each dyadic range query can be converted into a single point query. A CM sketch is kept for every dyadic range, and we do a single point query for every dyadic range. The sum of all of the point queries is the result, $\hat a[l,r]$.\\\\
+    TODO better explain dyadic range stuff? ASK LIN \\\\
+    \textbf{Theorem 4: } $a[l,r] \leq \hat a[l,r]$. With probability at least $(1-\delta)$, $\hat a[l,r] \leq a[l,r] + 2\epsilon logn ||\bm{a}||_1$.\\\\
+    \textbf{Proof:}\\
+    TODO explain why we have 2log2n dyadic ranges, which are equivalently a point query for each. Then:\\
+    This proof is a simple extension of the point query proof. Because a single range query can be transformed to $2\log_2n$ point queries, we can extend the error bounds of many point queries. Recall that a single point query errors by at most $\epsilon ||\bm{a}||_1$, with probability $\delta$. Because each of these point queries that we used are taken from a separate CM sketch, they are all independent. Thus, we can simply add the errors together, and therefore, we error by at most $2\log_2n(\epsilon||\bm{a}||_1)$, and with the same probability, $\delta$.
+
 \section{Applications}
 
 \subsection{Quantiles in the turnstile model}
@@ -217,6 +250,13 @@ The count-min sketch can be used to calculate the $\phi$-quantiles in the turnst
 ccan be positive or negative). $\phi$-quantiles are the values that split the set of values into
 $\phi$ parts.  The median, for example, is the 2-quantile. Prior work (21) shows that
 $\phi$-quantiles can be approximated using range sums. 
+
+
+\subsection{Heavy hitters for the cash register case}
+Recall that the cash register case is for positive updates only. We can easily obtain $||\bm{a}||$ at any given point in time because it is simply: $\Sigma_{i=1}^t c_i$.We define a $\phi$ heavy hitter if the estimation of the point query, $Q(i_t) =  \hat a_{it} \geq \phi ||\bm{a}(t))||$. We can do this by maintaining a heap to store the items above the $phi||\bm{a}(t)||$ threshold. On any update, we check the lowest value in the heap, and if the update would be greater than the lowest item, we replace it in the heap. When we are finished with the stream, we do a final scan of all items in the heap, and return the ones which have a value over $\phi||\bm{a}||_1$.\\\\
+\textbf{Theorem 6: } We can identify the heavy hitters of a sequence of length $||\bm{a_i}||_1$ using space $O(\frac{1}{\epsilon}log(\frac{||\bm{a}||}{\delta}))$ and time $O(log(\frac{||\bm{a}||}{\delta}))$. Every item which occurs with count $\phi ||\bm{a}||_1$ is output, and with probability $(1-\delta)$, no items whose count is less than $(\phi - \epsilon)||\bm{a}||_1$ is output.\\\\
+\textbf{Proof idea:}\\
+Because we have only positive updates, and a CM sketch will only over estimate, it is not possible to miss any heavy hitter. Thus, we will never omit any heavy hitters. The bound on the error of outputting a non heavy hitter comes from the fact that a single point query outputs the estimate count of an item within $\epsilon$ of the actual value, with probabiltiy $(1-\delta)$. Because the heavy hitter relies purely on the point query, the error bound is the same, and thus, is as above.\\\\
 
 % dyadic range - log n versus 2long
 % 1/e < e-d
