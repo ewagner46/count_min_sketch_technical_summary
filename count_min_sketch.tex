@@ -290,7 +290,33 @@ The time and space complexity are the same as the non-negative case: $O(\ln
 \frac{1}{\delta})$ time and $(2 + \frac{e}{\varepsilon})\ln \frac{1}{\delta}$
 words, respectively.
 
-\section{Range query:}
+\section{Inner Product Query}
+	\subsection{Algorithm}
+		The estimate the inner product $\mathit{Q}(a,b)$ for non-negative vectors $a$ and $b$ is $\widehat{a \cdot b} = \min_j(\widehat{a \cdot b})_j$, where $(\widehat{a \cdot b})_j = \sum_{k=1}^w count_a[j,k] * count_b[j,k]$. The algorithm to compute the inner product follows from point queries.
+		\textbf{Theorem 3:} The inner product $a \cdot b$ is less than or equal to the estimated inner product such that,
+		\begin{align}
+		a \cdot b \leq \widehat{a \cdot b} \\
+		Pr(\widehat{a \cdot b} \leq a \cdot b + \epsilon||a||_1||b||_1) = 1-\delta
+		\end{align}
+
+	\subsection{Proof of Theorem 3}
+		We represent the estimated inner product as the sum of the true inner product and collisions. By the pairwise independence of $h$,
+		\begin{align}
+		(\widehat{a \cdot b})_j &= \sum_{i=1}^n a_ib_i + \sum_{p \neq q, h_j(p)=h_j(q)} a_pb_q \\
+		E\left[(\widehat{a \cdot b})_j - a \cdot b\right] &= E\left[\sum_{p \neq q, h_j(p)=h_j(q)} a_pb_q\right] \\
+		&= Pr(h_j(p) = h_j(q))a_pb_q \\
+		&\leq \sum_{p \neq q} \frac{\varepsilon}{\mathrm{e}}a_pb_q \\
+		&\leq \frac{\varepsilon}{\mathrm e}||a||_1||b||_1
+		\end{align}
+		Where this follows by the reduction of the inner product computation as a series of point queries as outlined above. Applying the markov inequality,
+		\begin{align}
+		Pr(\widehat{a \cdot b} - a \cdot b > \varepsilon ||a||_1||b||_1) &\leq \frac{E[\widehat{a \cdot b} - a \cdot b]}{||a||_1||b||_1} \\
+		&\leq \frac{\frac{\varepsilon}{\mathrm e}||a||_1||b||_1}{\epsilon||a||_1||b||_1} \\
+		& \leq 1/e \\
+		&\leq \delta
+		\end{align}
+
+\section{Range Query}
 A range query, denoted as: $\mathcal{Q}(l,r)$, requests the value:
 \begin{align*}
     a[l,4] = \Sigma_{i=l}^r a_i
@@ -335,11 +361,26 @@ is $O\left(\log(n)\log\left(\frac{\log n}{\phi \delta}\right)\right)$
 This improves the existing query time and update by a factor of more than $\frac{34}{\varepsilon^2} \log n$
 The space requirements are improved by a factor of at least $\frac{34}{\varepsilon}$. 
 
-\subsection{Heavy hitters for the cash register case}
+\subsection{Heavy Hitters}
+A potential application of the count min sketch is the heavy hitters problem. Given an input $A$ of length $n$ and a parameter $k$ we wish to return values that occur in the input at least $n/k$ times. There may be at most $k$ such heavy hitters, though there also may be none. This sketch provides a convenient way to find the heavy hitters of some data stream with a large input size such that maintaining a counter for each unique element is not feasible. We look at two cases:
+\begin{enumerate}
+\item The cash register case: elements are only added
+\item The turnstile case: elements can be added or removed
+\end{enumerate}
+
+\subsubsection{Cash Register Case}
 Recall that the cash register case is for positive updates only. We can easily obtain $||\bm{a}||$ at any given point in time because it is simply: $\Sigma_{i=1}^t c_i$.We define a $\phi$ heavy hitter if the estimation of the point query, $Q(i_t) =  \hat a_{it} \geq \phi ||\bm{a}(t))||$. We can do this by maintaining a heap to store the items above the $phi||\bm{a}(t)||$ threshold. On any update, we check the lowest value in the heap, and if the update would be greater than the lowest item, we replace it in the heap. When we are finished with the stream, we do a final scan of all items in the heap, and return the ones which have a value over $\phi||\bm{a}||_1$.\\\\
 \textbf{Theorem 6: } We can identify the heavy hitters of a sequence of length $||\bm{a_i}||_1$ using space $O(\frac{1}{\epsilon}log(\frac{||\bm{a}||}{\delta}))$ and time $O(log(\frac{||\bm{a}||}{\delta}))$. Every item which occurs with count $\phi ||\bm{a}||_1$ is output, and with probability $(1-\delta)$, no items whose count is less than $(\phi - \epsilon)||\bm{a}||_1$ is output.\\\\
 \textbf{Proof idea:}\\
 Because we have only positive updates, and a CM sketch will only over estimate, it is not possible to miss any heavy hitter. Thus, we will never omit any heavy hitters. The bound on the error of outputting a non heavy hitter comes from the fact that a single point query outputs the estimate count of an item within $\epsilon$ of the actual value, with probabiltiy $(1-\delta)$. Because the heavy hitter relies purely on the point query, the error bound is the same, and thus, is as above.\\\\
+
+\subsubsection{Turnstile Case}
+The method outlined by Graham Cormode et. al.\footnote{Graham Cormode and S. Muthukrishnan. 2005. What's hot and what's not: tracking most frequent items dynamically. ACM Trans. Database Syst. 30, 1 (March 2005), 249-278. DOI=http://dx.doi.org/10.1145/1061318.106132} is adapted using the count min sketch. In this scheme, a sketch is maintained for each of the $\log n$ dyadic ranges. When an element is inserted or removed, a binary search is preformed while updating the counter at each level of the hierarchy. To find the heavy hitters, a parallel binary search is performed recursively searching each range for which the counter weight exceeds $(\phi + epsilon)||a||_1$. Since at each level there are at most $1/\phi$ items with frequency greater than $\phi$, the probability of failure for each sketch is set at $\delta\phi/(2\log n)$ to limit the number of output items whose true frequency is less than $\phi$. By doing this the total probability that there is any overestimated by more than $\epsilon$ is bounded by $\delta$ by the union bound.
+
+Since the sketch at minimum reports the true count, we are guaranteed that the the true heavy hitters, if they exist, are reported. With probability $1 - \delta$, the algorithm will report a false heavy hitter.
+
+\textbf{Theorem 7:} \\
+The algorithm uses space $O((1/\epsilon)\log n \log (2 \log n/(\delta \phi)))$ and time $O(\log n \times \log(2 \log n/(\delta\phi)))$ per update. Every item with frequency at least $(\phi + \epsilon)||a||_1$ is reported, and with probability $1-\delta$ no item whose frequency is less than $\phi ||a||_1$ is output.
 
 % dyadic range - log n versus 2log n
 % 1/e < e-d
