@@ -64,10 +64,9 @@ time. There are 2 main models for such a stream:
     \end{enumerate}
 \end{enumerate}
 
-The basic problem we address is to summarize or calculate certain characteristics
-about the stream. We have 2 main requirements. First, the space used by such algorithms should be small; at most polylogarithmic
-in $n$.  This compressed version of the data is called a \textbf{sketch}.  Second, we want to be
-able to process updates to the sketch quickly.  Since we are sublinear in input space,
+The basic problem this work addresses is to summarize or calculate certain characteristics
+about the stream. There are 2 main constraints. First, the space used by such algorithms should be small; at most polylogarithmic
+in $n$.  This compressed version of the data is called a \textbf{sketch}.  Second, updates to the sketch should be processed quickly.  Since we are sublinear in input space,
 we will have to approximate almost any function we want to compute over $\vec{a}$, but
 we still want to specify an approximation parameter $\varepsilon$ and bound the probability
 of error by $\delta$.  
@@ -95,12 +94,15 @@ In addition, these queries can be used for more complex data stream functions:
     \begin{align}
         ||\vec{a}||_1 = \sum_{i = 1}^{n}|a_i(t)|
     \end{align}
-    are the values that split a multiset of integers $\in [1 \dots n]$ into $\phi$ groups based on
-    their rank $R$.  For example, the median of a set of data is the 2-quantile. The elements are sorted and split as
-    follows.  The $k$th quantile is the element(s) with rank $R = k\phi||\vec{a}||_1$ for $k = 0, \dots,
-    1/\phi$.  The $\varepsilon$-approximation for the $\phi$-quantiles accepts as the $k$-th quantile
-    any integer with rank $(k\phi - \varepsilon)||\vec{a}||_1 \leq R \leq (k\phi +
-    \varepsilon)||\vec{a}||_1$ for a given $\varepsilon < \phi$.
+    are the values that split a multiset of integers $I \in [1 \dots n]$ into $\phi$ groups based on
+    their rank $R$.  For example, the median of a set of data is the 2-quantile. 
+    
+    To obtain the $\phi$-quantiles, the elements are sorted and split as
+    follows.  The $k$th quantile is the element(s) with rank $R =
+    k\phi||\vec{a}||_1$ for $k = 0, \dots, 1/\phi$.  The
+    $\varepsilon$-approximation for the $\phi$-quantiles accepts as the $k$-th
+    quantile any integer with rank $(k\phi - \varepsilon)||\vec{a}||_1 \leq R
+    \leq (k\phi + \varepsilon)||\vec{a}||_1$ for a given $\varepsilon < \phi$.
     \item \textbf{Heavy hitters:}
 \end{enumerate}
 
@@ -121,7 +123,7 @@ arrives as follows
 \begin{align}
     count[j, h_j(i_t)] \leftarrow count[j, h_j(i_t)] + c_t     
 \end{align}
-In other words, when you get an update $(i_t, c_t)$:
+In other words, upon receiving an update $(i_t, c_t)$:
 \begin{enumerate}
     \item for each row $1 \leq j \leq d$
     \begin{enumerate}
@@ -130,9 +132,12 @@ In other words, when you get an update $(i_t, c_t)$:
 \end{enumerate}
 
 \section{Approximate Point Queries using CM sketches}
-\subsection{Algorithm}
+
+\subsection{Non-Negative Case}
+\subsubsection{Algorithm}
 For the non-negative case (either the non-negative turnstile or cash-register case),
-The algorithm to estimate $\hat{a}_i(t) = \sq(i)$ is as follows: \begin{align}
+the algorithm to estimate $\hat{a}_i(t) = \sq(i)$ is as follows: 
+\begin{align}
     \sq(i) = \hat{a}_i = \text{min}_j count[j, h_j(i)]
 \end{align}
 In other words for a given $i_t = i$, $\hat a_i =$ \texttt{Estimate\_Point\_Query(CM\_Sketch($\vec{a}, t$), i )}:
@@ -153,17 +158,16 @@ Estimate_Point_Query(CM_Sketch((*$\vec{a}$*), t), i)
         \hat{a}_i \leq a_i + \varepsilon ||\vec{a}||_1 
     \end{align}
 \end{enumerate}
-\subsection{Proof of Theorem 1}
+\subsubsection{Proof of Theorem 1}
 \textbf{Define} an indicator variable $I_{i, j, k}$ as follows:
 \begin{align}
     I_{i, j, k} = 
     \begin{cases}
-        1, & \text{if} h_j(i) = h_j(k) \text{ and } i \neq k \\
+        1, & \text{ if } h_j(i) = h_j(k) \text{ and } i \neq k \\
         0, & \text{otherwise}
     \end{cases}
 \end{align}
-In other words, $I_{i, j, k}$ is 1 if $i$ and $k$, $i \neq k$, have
-a collision under hash function $h_j$.
+$I_{i, j, k}$ is 1 if $i$ and $k$, $i \neq k$, have a collision under hash function $h_j$.
 
 Since, to begin with, we chose all $h_j$ from a 2-universal hash family
 with range $1 \leq h_j \leq d = \ceil{\frac{e}{\varepsilon}}$ 
@@ -179,16 +183,16 @@ range.
 \begin{align}
     X_{i, j} = \sum_{k = 1}^{n}I_{i, j, k} a_k
 \end{align}
-In other words, it is the sum of all corresponding vector values whose indices
+In other words, $X_{i, j}$ is the sum of all corresponding vector values whose indices
 collide with the index of $a_i$ under $h_j$. Trivially, we can then state that
 \begin{align}\label{eq:count-def}
     count[j, h_j(i)] = a_i + X_{i, j} 
 \end{align}
-Here, we're just saying that the column that $i$ hashes to under $h_j$
+This is clearly true as the column that $i$ hashes to under $h_j$
 contains the real value $a_i$ after update $t$, combined with all of the other
-$a_k, k \neq i$ after update $t$ that hash to that same spot in that row $j$ under
-$h_j$. This is just how the data structure is made.  Now, 1.a follows because
-we are only considering the case where vector elements are non-negative and thus
+$a_k$, $k \neq i$ after update $t$ that hash to that same spot in that row $j$ under
+$h_j$.   Now, Theorem 1.a follows because we are only considering the case where vector
+elements are non-negative and thus
 \begin{align}
     a_i \leq \hat a_i = a_i + X_{i, j}
 \end{align}
@@ -198,11 +202,11 @@ Now, to show 1.b, we evaluate:
 \begin{align}
     E(X_{i, j}) = E\left(\sum_{k = 1}^n I_{i, j, k} a_k\right) 
 \end{align}
-by definition of $X_{i, j}$. The linearity of expectation gives us
+by definition of $X_{i, j}$. The linearity of expectation states that
 \begin{align}
     E(\sum_{i = 1}^{n} c_i X_i) = \sum_{i = 1}^{n} c_i E(X_i)
 \end{align}
-where $X_i$s may be dependent. Applying this here, we have:
+where $X_i$s may be dependent. Applying linearity of expectations here, we have:
 \begin{align}
     E(\sum_{k = 1}^{n} a_k I_{i, j, k}) = \sum_{k = 1}^{n} a_k E(I_{i, j, k}) 
 \end{align}
@@ -239,8 +243,33 @@ Then, subtracting $a_i$ from both sides, and using equation \ref{eq:collision-pr
 \end{align}
 Finally, applying the bounds given by Markov's inequality, we have:
 \begin{align}
-      Pr[\forall_{j \cdot} X_{i, j} > e E(X_{i, j})] \leq \frac{E(X_{i, j})}{a_i + \varepsilon||a||_1} 
+      Pr[\forall_{j \cdot} X_{i, j} > e E(X_{i, j})] \leq \frac{E(X_{i, j})}{a_i + \varepsilon||a||_1} < e^{-d} < \delta
 \end{align}
+This estimate is calculated in $O(\ln \frac{1}{\delta})$ as the minimum of a multiset can be taken in linear time.
+The space complexity is $(2 + \frac{e}{\varepsilon})\ln \frac{1}{\delta}$ words.
+
+All previous analyses of sketch algorithm use Chebyshev in their estimation analysis, yielding a dependency on
+$\frac{1}{\epsilon^2}$ for the space complexity.  Using Markov in this analysis yields a tighter bound,
+with a dependency $\frac{1}{\epsilon}$.
+
+Considering only the non-negative case here confers 2 advantages as we can take the minimum of the estimate,
+rather than the median.  This allows us only one-sided error, and allows us to calculate the failure
+probability, instead of using Chernoff bounds, yielding smaller constants than prior work.
+
+\subsection{General Case}
+\subsubsection{Algorithm}
+The algorithm is identical to the non-negative case, except that we take the median of the multiset:
+\begin{align}
+    \sq(i) = \hat{a}_i = \text{median}_j count[j, h_j(i)]
+\end{align}
+
+\textbf{Theorem 2:} With probability $1 - \delta^{1/4}$,
+\begin{align}
+    a_i - 3\varepsilon||\vec{a}||_1 \leq \hat{a}_i \leq a_i + 3\varepsilon||\vec{a}||_1. 
+\end{align}
+The time and space complexity are the same as the non-negative case: $O(\ln
+\frac{1}{\delta})$ time and $(2 + \frac{e}{\varepsilon})\ln \frac{1}{\delta}$
+words, respectively.
 
 \section{Applications}
 
