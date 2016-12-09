@@ -320,15 +320,13 @@ words, respectively.
 A range query, denoted as: $\mathcal{Q}(l,r)$, requests the value:
 \begin{align*}
     a[l,4] = \Sigma_{i=l}^r a_i
-    \end{align*}
-    And we denote our estimator based on the CM sketch as: $\hat a[l,r]$.\\\\
+\end{align*}
+And we denote our estimator based on the CM sketch as: $\hat a[l,r]$.\\\\
     \textbf{Procedure for estimation:}\\
-    Keep $log_2n$ CM sketches. A single range query can be converted into $2log_2n$ dyadic range queries, and each dyadic range query can be converted into a single point query. A CM sketch is kept for every dyadic range, and we do a single point query for every dyadic range. The sum of all of the point queries is the result, $\hat a[l,r]$.\\\\
-    TODO better explain dyadic range stuff? ASK LIN \\\\
+    Keep $log_2n$ CM sketches. A single range query can be converted into at most $2log_2n$ dyadic range queries, and each dyadic range query can be converted into a single point query. A CM sketch is kept for every dyadic range, and we do a single point query for every dyadic range that makes up the desired range. The sum of all of the point queries is the result, $\hat a[l,r]$.\\\\
     \textbf{Theorem 4: } $a[l,r] \leq \hat a[l,r]$. With probability at least $(1-\delta)$, $\hat a[l,r] \leq a[l,r] + 2\epsilon logn ||\bm{a}||_1$.\\\\
-    \textbf{Proof:}\\
-    TODO explain why we have 2log2n dyadic ranges, which are equivalently a point query for each. Then:\\
-    This proof is a simple extension of the point query proof. Because a single range query can be transformed to $2\log_2n$ point queries, we can extend the error bounds of many point queries. Recall that a single point query errors by at most $\epsilon ||\bm{a}||_1$, with probability $\delta$. Because each of these point queries that we used are taken from a separate CM sketch, they are all independent. Thus, we can simply add the errors together, and therefore, we error by at most $2\log_2n(\epsilon||\bm{a}||_1)$, and with the same probability, $\delta$.
+    
+    \textbf{Proof: } First, consider the concept of using dyadic ranges: Any range can be converted into a equivalent set of dyadic ranges, in the form of $[x2^y+1, ... , (x+1)2^y]$. For any range we desire, we can equate the construct of a set of dyadic ranges to constructing a tree: the root is the whole range, then its children are each half of the range, and this continues until we hit the leaves, which are sets of singular elements. In the context of a range query, we keep a CM sketch for each level in the tree, and every node in that level represents a value in that CM sketch. When we get an update, we update every CM sketch. Thus, the number of CM sketches we keep is the height of the tree, which is $log_2n$. When we get a range query, we can traverse the tree and, at each level, our range query will be covered by at most one node in the level. At worst, we must travel down the entire height of the tree twice, once for the lower bound of the range, and once for the upper bound of the range. Thus, we cover $log_2n$ for each bound, which means $2log_2n$ nodes are touched. Because each of these nodes can be queried as a single point query, we simply sum up, at most, $2log_2n$ point queries. We can extend the error bound of a single point query to find the error bound of our range query. Recall that a single point query errors by at most $\epsilon ||\bm{a}||_1$, with probability $\delta$. Because each of these point queries that we used are taken from a separate CM sketch, they are all independent. Thus, we can simply add the errors together, and therefore, we error by at most $2\log_2n(\epsilon||\bm{a}||_1)$, and with the same probability, $\delta$.
 
 \section{Applications}
 
