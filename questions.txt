@@ -1,12 +1,19 @@
 1. phi quantiles - for any multiset of integers, or is it the vector elements?
+    - stricly turnstile, non-negative.  deltion corresponsds to -1 change. think
+      of the vector as a vector of counts.
+
 2. are the quantiles the numbers that split the integers into those groups, ie is median the 2- quantile, or is the groups themselves.
 3. why was the the range in the turnstile model, when the defintion in the intro said the multiset had to be positive
 4. Why do the quantiles have to be integers to begin with
 5. probablilty gaurantee for phi-quantile
-6.A deltas relationship to e: 1/e < e^-d
+6. A deltas relationship to e: 1/e < e^-d
 7. dyadic ranges for range query
-8. getting rid of the ceil in the point query proof
+8. getting rid of the ceil in the point query proof: informality
 9. how much detail on the proofs we arent proving. Just state them?
 
 todo for me
 more on the problem statement
+
+additional questions: quantiles finite or countably infinite
+ceil of the inverse ? or floor?
+space complexity: (2 + e/epsilon)ln 1/delta
