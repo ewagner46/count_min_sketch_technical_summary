@@ -24,6 +24,8 @@
 \newcommand{\wontfix}{\rlap{$\square$}{\large\hspace{1pt}\xmark}}
  \usepackage[parfill]{parskip} 
 \usepackage{mathtools}
+\usepackage{todonotes}
+\newcommand{\comment}[1]{} 
 
 \newcommand{\sq}{\mathit{Q}_i}
 \DeclarePairedDelimiter\ceil{\lceil}{\rceil}
@@ -65,15 +67,20 @@ time. There are 2 main models for such a stream:
     \end{enumerate}
 \end{enumerate}
 
-The basic problem this work addresses is to summarize or calculate certain characteristics
-about the stream. There are 2 main constraints. First, the space used by such algorithms should be small; at most polylogarithmic
-in $n$.  This compressed version of the data is called a \textbf{sketch}.  Second, updates to the sketch should be processed quickly.  Since we are sublinear in input space,
-we will have to approximate almost any function we want to compute over $\vec{a}$, but
-we still want to specify an approximation parameter $\varepsilon$ and bound the probability
-of error by $\delta$.  
+The basic problem this work addresses is to summarize or calculate certain
+characteristics about the stream. There are 2 main constraints. First, the space
+used by such algorithms should be small; at most polylogarithmic in $n$.  This
+compressed version of the data is called a \textbf{sketch}.  Second, updates to
+the sketch should be processed quickly.  
+
+
+Since we are sublinear in input space, we will have to approximate almost any
+function we want to compute over $\vec{a}$, but we still want to specify an
+approximation parameter $\varepsilon$ and bound the probability of error by
+$\delta$.  
 
 The \textbf{count-min sketch} addresses these requirements and allows us to calculate several characteristics
-of a stream using a single data structure.  It can be used to approximate three types of \textbf{queries}:
+of a stream using a single type of data structure.  It can be used to approximate three types of \textbf{queries}:
 \begin{enumerate}
     \item \textbf{point query:} $\sq(i)$ is an approximation of the vector 
     element $a_i(t)$
@@ -95,18 +102,18 @@ In addition, these queries can be used for more complex data stream functions:
     \begin{align}
         ||\vec{a}||_1 = \sum_{i = 1}^{n}|a_i(t)|
     \end{align}
-    are the values that split a multiset of integers $I \in [1 \dots n]$ into $\phi$ groups based on
-    their rank $R$.  For example, the median of a set of data is the 2-quantile. 
+    are the values within a multiset of finite size that split it 
+    into $\phi$ groups of equal size based on their rank $R$.  For example, the
+    median of a set of data is the 2-quantile. 
     
     To obtain the $\phi$-quantiles, the elements are sorted and split as
     follows.  The $k$th quantile is the element(s) with rank $R =
     k\phi||\vec{a}||_1$ for $k = 0, \dots, 1/\phi$.  The
     $\varepsilon$-approximation for the $\phi$-quantiles accepts as the $k$-th
-    quantile any integer with rank $(k\phi - \varepsilon)||\vec{a}||_1 \leq R
+    quantile any of value with rank $(k\phi - \varepsilon)||\vec{a}||_1 \leq R
     \leq (k\phi + \varepsilon)||\vec{a}||_1$ for a given $\varepsilon < \phi$.
     \item \textbf{Heavy hitters:}
 \end{enumerate}
-
 \section{State of the art}
 Sketches have been commonly used to help analyze large streams of data. These sketches allow for the following types of queries: $L_1$ and $L_2$ norms, number of distinct items in a sequence, join size of relations, range sum queries, and more. Although these data structures have proved to be very powerful, there are a few key drawbacks that limit the effectiveness of these sketches. A few of the drawbacks are as follows:
 \begin{enumerate}
@@ -137,19 +144,28 @@ We need $d$ pair-wise independent hash functions
 \begin{align}
     h_1 \dots h_d : \{1 \dots n\} \ra \{1 \dots w\} 
 \end{align}
-The sketch starts with every array entry being 0. The sketch is updated when the $t$th update $\{a_{i_t}, c_t\}$
-arrives as follows
+The sketch starts with every array entry being 0. The count-min sketch $count$
+is updated when the $t$th update $\{a_{i_t}, c_t\}$ arrives as follows
 \begin{align}
     count[j, h_j(i_t)] \leftarrow count[j, h_j(i_t)] + c_t     
 \end{align}
 In other words, upon receiving an update $(i_t, c_t)$:
+\begin{lstlisting}[escapeinside={(*}{*)}]
+Update_CM_Sketch(count, (*$(i_t, c_t)$*)) 
+    for each row j, 1 (*$\leq$*) j (*$\leq$*) d:
+        count[j, (*$h_j(i)$*)] (*$\leftarrow$*) count[j, (*$h_j(i)$*)] + (*$c_t$*)
+    return count 
+    
+\end{lstlisting}
+
+\comment{
 \begin{enumerate}
     \item for each row $1 \leq j \leq d$
     \begin{enumerate}
         \item add $c_t$ to the $h_j(i)$th column.
     \end{enumerate}
 \end{enumerate}
-
+}
 \section{Approximate Point Queries using CM sketches}
 
 \subsection{Non-Negative Case}
@@ -159,14 +175,15 @@ the algorithm to estimate $\hat{a}_i(t) = \sq(i)$ is as follows:
 \begin{align}
     \sq(i) = \hat{a}_i = \text{min}_j count[j, h_j(i)]
 \end{align}
-In other words for a given $i_t = i$, $\hat a_i =$ \texttt{Estimate\_Point\_Query(CM\_Sketch($\vec{a}, t$), i )}:
+In other words for a given $\hat a_i(t) =$ \texttt{Estimate\_Point\_Query(count, $i_t$)}.
 
 \begin{lstlisting}[escapeinside={(*}{*)}]
-Estimate_Point_Query(CM_Sketch((*$\vec{a}$*), t), i) 
-    make empty multiset S;
+Estimate_Point_Query(count, (*$i_t$*)) 
+    s (*$\leftarrow$*) (*$\infty$*)
     for each row j, 1 (*$\leq$*) j (*$\leq$*) d:
-        S = S (*$\cup$*) count[j, h_j(i)]
-    return min(S);
+        if count[j, (*$h_j(i)$*)] < s:
+            s (*$\leftarrow$*) count[j, (*$h_j$*)(i)]
+    return s;
 \end{lstlisting}
 
 \textbf{Theorem 1:} The estimate $\hat a_i$ has the following guarantees:
@@ -178,6 +195,8 @@ Estimate_Point_Query(CM_Sketch((*$\vec{a}$*), t), i)
     \end{align}
 \end{enumerate}
 \subsubsection{Proof of Theorem 1}
+First, we prove 1.a.  
+
 \textbf{Define} an indicator variable $I_{i, j, k}$ as follows:
 \begin{align}
     I_{i, j, k} = 
@@ -217,7 +236,9 @@ elements are non-negative and thus
 \end{align}
 for any possible $X_{i, j}$
 
-Now, to show 1.b, we evaluate:
+Now we show 1.b.
+
+For future use in the analysis, we evaluate:
 \begin{align}
     E(X_{i, j}) = E\left(\sum_{k = 1}^n I_{i, j, k} a_k\right) 
 \end{align}
@@ -237,43 +258,48 @@ we have
 \end{align}
 and finally, since $||\vec{a}||_1 = \sum_{k = 1}^{n} |a_k| = \sum_{k = 1}^{n} a_k$
 (all $a_k$ are assumed to be non-negative)
-\begin{align}
-    \sum_{k = 1}^{n} a_k \ceil{\frac{\varepsilon}{e}} = \ceil{\frac{\varepsilon}{e}} ||\vec{a}|||_1 \\
-    \implies E(X_{i, j}) \leq \ceil{\frac{\varepsilon}{e}} ||\vec{a}||_1
+\begin{align}\label{eqn:expectation-bound}
+    \sum_{k = 1}^{n} a_k \ceil{\frac{\varepsilon}{e}} = \ceil{\frac{\varepsilon}{e}} ||\vec{a}|||_1 \nonumber \\
+    \implies E(X_{i, j}) \leq \ceil{\frac{\varepsilon}{e}} ||\vec{a}||_1 
 \end{align}
-% why less than equals, why not just equals?
-Now that we know that this is true in expectation, we use Markov to bound the tail bounds:
+We will use this result in the following proof.
+
+We want to show that $Pr[\hat{a}_i > a_i + \varepsilon ||a||_1] < \delta$. We can see that
 \begin{align}
-    Pr[X \geq a] = \frac{1}{a}E(X) 
+    Pr[\hat{a}_i > a_i + \varepsilon ||a||_1] = Pr[\forall_{j \cdot} count[j, h_j(i)] > a_i + \varepsilon ||\vec{a}||_1 
 \end{align}
-Let $X = \hat{a}_i$, and choose $a = a_i + \varepsilon||a||_1$.  Then,
-\begin{align}
-    Pr[\hat{a}_i > a_i + \varepsilon ||a||_1 = Pr[\forall_{j \cdot} count[j, h_j(i)] > a_i + \varepsilon ||\vec{a}||_1] 
-\end{align}
-since the probability that all values are greater than $a_i + \varepsilon||\vec a||_1$ is equivalent 
-to the probability that the minimum of all values is greater than $a_i + \varepsilon||\vec a||_1$,
-which is the definition of $\hat a_i$. Then, as stated in equation \ref{eq:count-def}, we have
+since the probability that all values in a set are greater than $a_i + \varepsilon||\vec a||_1$ is equivalent 
+to the probability that the minimum of all the values in that set is greater than $a_i + \varepsilon||\vec a||_1$.
+(Recall that $\hat a_i$ is defined as the minimum of all of the array elements that $i$
+hashes to in each row.) Then, by the definition stated in equation \ref{eq:count-def}, we have
 \begin{align}
     Pr[\forall_{j \cdot} count[j, h_j(i)] > a_i + \varepsilon ||\vec{a}||_1] = Pr[\forall_{j \cdot} a_i + X_{i, j} > a_i + \varepsilon ||\vec{a}||_1]
 \end{align}
-Then, subtracting $a_i$ from both sides, and using equation \ref{eq:collision-prob} on the $\varepsilon ||\vec{a}||_1$ term, we have:
+Then, subtracting $a_i$ from both sides, and using equation \ref{eqn:expectation-bound} on the $\varepsilon ||\vec{a}||_1$ term, we have:
 \begin{align}
-    Pr[\forall_{j \cdot} a_i + X_{i, j} > a_i + \varepsilon ||\vec{a}||_1]  = Pr[\forall_{j \cdot} X_{i, j} > e E(X_{i, j})]
+    Pr[\forall_{j \cdot} a_i + X_{i, j} > a_i + \varepsilon ||\vec{a}||_1] \geq Pr[\forall_{j \cdot} X_{i, j} > e E(X_{i, j})]
 \end{align}
-Finally, applying the bounds given by Markov's inequality, we have:
-\begin{align}
-      Pr[\forall_{j \cdot} X_{i, j} > e E(X_{i, j})] \leq \frac{E(X_{i, j})}{a_i + \varepsilon||a||_1} < e^{-d} < \delta
-\end{align}
-This estimate is calculated in $O(\ln \frac{1}{\delta})$ as the minimum of a multiset can be taken in linear time.
-The space complexity is $(2 + \frac{e}{\varepsilon})\ln \frac{1}{\delta}$ words.
 
-All previous analyses of sketch algorithm use Chebyshev in their estimation analysis, yielding a dependency on
+\pagebreak
+Finally, consider the Markov inequality:
+\begin{align}
+    Pr[X > aE[X]] \leq \frac{1}{a}
+\end{align}
+Since this is the non-negative case and thus $X_{i, j}$ is non-negative, we can apply it here:
+\begin{align}
+    Pr[X_{i, j} > e E(X_{i, j})] \leq \frac{1}{e} \\
+    \implies \bigcap_{1 \leq j \leq d} Pr[X_{i, j} > e E(X_{i, j})] \leq \left(\frac{1}{e}\right)^d \\
+    \implies Pr[\forall_{j \cdot} X_{i, j} > e E(X_{i, j})] \comment{\leq \frac{E(X_{i, j})}{a_i + \varepsilon||a||_1} \leq \frac{\ceil{\frac{\varepsilon}{e}} ||\vec{a}||_1}{a_i + \varepsilon||a||_1}}
+      < e^{-d} < \delta
+\end{align}
+This estimate is calculated in $O(\ln \frac{1}{\delta})$ as the minimum of a multiset can be taken in linear time, and we are taking it across $d = O(\ln \frac{1}{\delta})$ rows for the point query.  The update time to maintain the data structure after each update is also $O(\ln \frac{1}{\delta})$, since we hash a single value in each row of the data structure.
+
+The space complexity is $\left(2 + \ceil{\frac{e}{\varepsilon}}\right)\ceil{\ln \frac{1}{\delta}}$ words, as the dimensions of the matrix are 
+$w \times d = \ceil{\frac{e}{\varepsilon}}\times\ceil{\ln \frac{1}{\delta}}$.
+
+\comment{All previous analyses of sketch algorithm use Chebyshev in their estimation analysis, yielding a dependency on
 $\frac{1}{\epsilon^2}$ for the space complexity.  Using Markov in this analysis yields a tighter bound,
-with a dependency $\frac{1}{\epsilon}$.
-
-Considering only the non-negative case here confers 2 advantages as we can take the minimum of the estimate,
-rather than the median.  This allows us only one-sided error, and allows us to calculate the failure
-probability, instead of using Chernoff bounds, yielding smaller constants than prior work.
+with a dependency $\frac{1}{\epsilon}$.}
 
 \subsection{General Case}
 \subsubsection{Algorithm}
@@ -286,9 +312,12 @@ The algorithm is identical to the non-negative case, except that we take the med
 \begin{align}
     a_i - 3\varepsilon||\vec{a}||_1 \leq \hat{a}_i \leq a_i + 3\varepsilon||\vec{a}||_1. 
 \end{align}
+Here, since the array elements can be negative, we can no longer use Markov, and instead must apply Chernoff
+bounds. TODO more details
+
 The time and space complexity are the same as the non-negative case: $O(\ln
 \frac{1}{\delta})$ time and $(2 + \frac{e}{\varepsilon})\ln \frac{1}{\delta}$
-words, respectively.
+words, respectively. 
 
 \section{Inner Product Query}
 	\subsection{Algorithm}
@@ -319,6 +348,7 @@ words, respectively.
 \section{Range Query}
 A range query, denoted as: $\mathcal{Q}(l,r)$, requests the value:
 \begin{align*}
+<<<<<<< HEAD
     a[l,4] = \Sigma_{i=l}^r a_i
 \end{align*}
 And we denote our estimator based on the CM sketch as: $\hat a[l,r]$.\\\\
@@ -332,7 +362,11 @@ And we denote our estimator based on the CM sketch as: $\hat a[l,r]$.\\\\
 
 \subsection{Quantiles in the turnstile model}
 The count-min sketch can be used to calculate the $\phi$-quantiles in the turnstile model.
-Prior work (21) shows that $\phi$-quantiles can be approximated using range sums. This is done
+In this case, updates where $c_t < 0$ are called deletions, and $c_t > 0$ are called insertions.
+The value for each vector element $a_i$ is actually the number of instances of the elements
+$i$.
+
+Prior work (21) shows that $\phi$-quantiles in this model can be approximated using range sums. This is done
 as follows:
 \begin{enumerate}
     \item For each $k \in {1, 2, \dots, 1/\phi}$
@@ -369,8 +403,15 @@ A potential application of the count min sketch is the heavy hitters problem. Gi
 \subsubsection{Cash Register Case}
 Recall that the cash register case is for positive updates only. We can easily obtain $||\bm{a}||$ at any given point in time because it is simply: $\Sigma_{i=1}^t c_i$.We define a $\phi$ heavy hitter if the estimation of the point query, $Q(i_t) =  \hat a_{it} \geq \phi ||\bm{a}(t))||$. We can do this by maintaining a heap to store the items above the $phi||\bm{a}(t)||$ threshold. On any update, we check the lowest value in the heap, and if the update would be greater than the lowest item, we replace it in the heap. When we are finished with the stream, we do a final scan of all items in the heap, and return the ones which have a value over $\phi||\bm{a}||_1$.\\\\
 \textbf{Theorem 6: } We can identify the heavy hitters of a sequence of length $||\bm{a_i}||_1$ using space $O(\frac{1}{\epsilon}log(\frac{||\bm{a}||}{\delta}))$ and time $O(log(\frac{||\bm{a}||}{\delta}))$. Every item which occurs with count $\phi ||\bm{a}||_1$ is output, and with probability $(1-\delta)$, no items whose count is less than $(\phi - \epsilon)||\bm{a}||_1$ is output.\\\\
+
 \textbf{Proof idea:}\\
-Because we have only positive updates, and a CM sketch will only over estimate, it is not possible to miss any heavy hitter. Thus, we will never omit any heavy hitters. The bound on the error of outputting a non heavy hitter comes from the fact that a single point query outputs the estimate count of an item within $\epsilon$ of the actual value, with probabiltiy $(1-\delta)$. Because the heavy hitter relies purely on the point query, the error bound is the same, and thus, is as above.\\\\
+Because we have only positive updates, and a CM sketch will only over estimate,
+it is not possible to miss any heavy hitter. Thus, we will never omit any heavy
+hitters. The bound on the error of outputting a non heavy hitter comes from the
+fact that a single point query outputs the estimate count of an item within
+$\epsilon$ of the actual value, with probabiltiy $(1-\delta)$. Because the heavy
+hitter relies purely on the point query, the error bound is the same, and thus,
+is as above.\\\\
 
 \subsubsection{Turnstile Case}
 The method outlined by Graham Cormode et. al.\footnote{Graham Cormode and S. Muthukrishnan. 2005. What's hot and what's not: tracking most frequent items dynamically. ACM Trans. Database Syst. 30, 1 (March 2005), 249-278. DOI=http://dx.doi.org/10.1145/1061318.106132} is adapted using the count min sketch. In this scheme, a sketch is maintained for each of the $\log n$ dyadic ranges. When an element is inserted or removed, a binary search is preformed while updating the counter at each level of the hierarchy. To find the heavy hitters, a parallel binary search is performed recursively searching each range for which the counter weight exceeds $(\phi + epsilon)||a||_1$. Since at each level there are at most $1/\phi$ items with frequency greater than $\phi$, the probability of failure for each sketch is set at $\delta\phi/(2\log n)$ to limit the number of output items whose true frequency is less than $\phi$. By doing this the total probability that there is any overestimated by more than $\epsilon$ is bounded by $\delta$ by the union bound.
