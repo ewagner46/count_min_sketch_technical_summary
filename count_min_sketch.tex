@@ -73,7 +73,6 @@ used by such algorithms should be small; at most polylogarithmic in $n$.  This
 compressed version of the data is called a \textbf{sketch}.  Second, updates to
 the sketch should be processed quickly.  
 
-
 Since we are sublinear in input space, we will have to approximate almost any
 function we want to compute over $\vec{a}$, but we still want to specify an
 approximation parameter $\varepsilon$ and bound the probability of error by
@@ -84,40 +83,23 @@ of a stream using a single type of data structure.  It can be used to approximat
 \begin{enumerate}
     \item \textbf{point query:} $\sq(i)$ is an approximation of the vector 
     element $a_i(t)$
-    \item \textbf{range query:} $\sq(l, r)$ is an approximation of 
-    $\sum_{i = l}^{r}a_i$. 
     \item \textbf{inner product query:} $\sq(\vec{a}, \vec{b})$ approximates
     $\vec{a} \odot \vec{b} = \sum_{i = 1}^{n} a_i b_i$
+    \item \textbf{range query:} $\sq(l, r)$ is an approximation of 
+    $\sum_{i = l}^{r}a_i$. 
 \end{enumerate}
 
-These queries have a variety of applications: point and range queries are used in summarizing
-the data distribution and the inner product query can be used to estimate the join size of 
-relations. 
-
-In addition, these queries can be used for more complex data stream functions:
+These queries can be used for more complex data stream functions, such as $\phi$-quantiles and heavy hitters,
+which will be described in section \ref{sec:applications}.
 
 \begin{enumerate}
     % not integers
-    \item \textbf{$\phi$-quantiles:} The $\phi$-quantiles of the cardinality
-    \begin{align}
-        ||\vec{a}||_1 = \sum_{i = 1}^{n}|a_i(t)|
-    \end{align}
-    are the values within a multiset of finite size that split it 
-    into $\phi$ groups of equal size based on their rank $R$.  For example, the
-    median of a set of data is the 2-quantile. 
-    
-    To obtain the $\phi$-quantiles, the elements are sorted and split as
-    follows.  The $k$th quantile is the element(s) with rank $R =
-    k\phi||\vec{a}||_1$ for $k = 0, \dots, 1/\phi$.  The
-    $\varepsilon$-approximation for the $\phi$-quantiles accepts as the $k$-th
-    quantile any of value with rank $(k\phi - \varepsilon)||\vec{a}||_1 \leq R
-    \leq (k\phi + \varepsilon)||\vec{a}||_1$ for a given $\varepsilon < \phi$.
     \item \textbf{Heavy hitters:}
 \end{enumerate}
 \section{State of the art}
-Sketches have been commonly used to help analyze large streams of data. These sketches allow for the following types of queries: $L_1$ and $L_2$ norms, number of distinct items in a sequence, join size of relations, range sum queries, and more. Although these data structures have proved to be very powerful, there are a few key drawbacks that limit the effectiveness of these sketches. A few of the drawbacks are as follows:
+Sketches have been commonly used to help analyze large streams of data. These sketches allow for the following types of queries: $L_1$ and $L_2$ norms, number of distinct items in a sequence, join size of relations, range sum queries, and more. Although these data structures have proved to be very powerful, there are a few key drawbacks that limit the effectiveness of these sketches:
 \begin{enumerate}
-    \item Common sketches typically have a $\Omega(\frac{1}{\epsilon^2})$ multiplicative factor. For common uses of $\epsilon$, like 0.1 or 0.01, this scaling can quickly become too expensive.
+    \item Common sketches typically have a $\Omega(\frac{1}{\varepsilon^2})$ multiplicative factor. For common uses of $\varepsilon$, like 0.1 or 0.01, this scaling can quickly become too expensive.
     \item Many sketches take linear time (in the size of the sketch) to do a single update. 
     \item Many sketches require $p$-wise independent hash functions. This is not trivial, and is especially difficult in hardware applications.
     \item Some sketches can only handle one particular query.
@@ -125,13 +107,13 @@ Sketches have been commonly used to help analyze large streams of data. These sk
 \end{enumerate}
 The count-min sketch reduces these problems in the following ways:
 \begin{enumerate}
-    \item CMS uses space proportional to $\frac{1}{\epsilon}$
-    \item Update time is sublinear with respect to the size
-    \item CMS requires only pairwise independent hash functions
-    \item The sketch can answer several queries and has numerous applications
+    \item CMS uses space proportional to $\frac{1}{\varepsilon}$.
+    \item Update time is sublinear with respect to the size of the sketch.
+    \item CMS requires only pairwise independent hash functions.
+    \item The sketch can answer several queries and has numerous applications.
     \item All constants are explicit and small.
 \end{enumerate}
-In particular, notice that the space has been reduce from $\frac{1}{\epsilon^2}$ to $\frac{1}{\epsilon}$ using a CMS, and the time for an update has been reduced from $\frac{1}{\epsilon^2}$ to 1.
+In particular, notice that the space has been reduce from $\frac{1}{\varepsilon^2}$ to $\frac{1}{\varepsilon}$ using a CMS, and the time for an update has been reduced from $\frac{1}{\varepsilon^2}$ to $\ln{\frac{1}{\delta}}$.
 \section{How to make a count-min sketch}
 Note $e$ is the base of the natural logarithm function, $\ln$. The count-min
 sketch is an array with $w$ columns and $d$ rows where:
@@ -214,7 +196,7 @@ we know that, for $i \neq k$,
     Pr(h_j(i) = h_j(k)) \leq \frac{1}{\text{range}(h_j)} = 1/\ceil{\frac{e}{\varepsilon}} = \ceil{\frac{\varepsilon}{e}}
 \end{align}
 % how do they get rid of ceil??
-by the properties of a 2-universal has function and by our choice of hash function
+by the properties of a 2-universal hash function and by our choice of hash function
 range.
 
 \textbf{Define} $X_{i, j}$ as follows:
@@ -222,19 +204,15 @@ range.
     X_{i, j} = \sum_{k = 1}^{n}I_{i, j, k} a_k
 \end{align}
 In other words, $X_{i, j}$ is the sum of all corresponding vector values whose indices
-collide with the index of $a_i$ under $h_j$. Trivially, we can then state that
+collide $i$ under $h_j$. Trivially, we can then state that
 \begin{align}\label{eq:count-def}
     count[j, h_j(i)] = a_i + X_{i, j} 
 \end{align}
-This is clearly true as the column that $i$ hashes to under $h_j$
-contains the real value $a_i$ after update $t$, combined with all of the other
-$a_k$, $k \neq i$ after update $t$ that hash to that same spot in that row $j$ under
-$h_j$.   Now, Theorem 1.a follows because we are only considering the case where vector
+Now, Theorem 1.a follows because we are only considering the case where vector
 elements are non-negative and thus
 \begin{align}
     a_i \leq \hat a_i = a_i + X_{i, j}
 \end{align}
-for any possible $X_{i, j}$
 
 Now we show 1.b.
 
@@ -266,7 +244,7 @@ We will use this result in the following proof.
 
 We want to show that $Pr[\hat{a}_i > a_i + \varepsilon ||a||_1] < \delta$. We can see that
 \begin{align}
-    Pr[\hat{a}_i > a_i + \varepsilon ||a||_1] = Pr[\forall_{j \cdot} count[j, h_j(i)] > a_i + \varepsilon ||\vec{a}||_1 
+    Pr[\hat{a}_i > a_i + \varepsilon ||a||_1] = Pr[\forall_{j \cdot} count[j, h_j(i)] > a_i + \varepsilon ||\vec{a}||_1 ]
 \end{align}
 since the probability that all values in a set are greater than $a_i + \varepsilon||\vec a||_1$ is equivalent 
 to the probability that the minimum of all the values in that set is greater than $a_i + \varepsilon||\vec a||_1$.
@@ -298,8 +276,8 @@ The space complexity is $\left(2 + \ceil{\frac{e}{\varepsilon}}\right)\ceil{\ln 
 $w \times d = \ceil{\frac{e}{\varepsilon}}\times\ceil{\ln \frac{1}{\delta}}$.
 
 \comment{All previous analyses of sketch algorithm use Chebyshev in their estimation analysis, yielding a dependency on
-$\frac{1}{\epsilon^2}$ for the space complexity.  Using Markov in this analysis yields a tighter bound,
-with a dependency $\frac{1}{\epsilon}$.}
+$\frac{1}{\varepsilon^2}$ for the space complexity.  Using Markov in this analysis yields a tighter bound,
+with a dependency $\frac{1}{\varepsilon}$.}
 
 \subsection{General Case}
 \subsubsection{Algorithm}
@@ -320,19 +298,23 @@ The time and space complexity are the same as the non-negative case: $O(\ln
 words, respectively. 
 
 \section{Inner Product Query}
-	\subsection{Algorithm}
-		The estimate the inner product $\mathit{Q}(a,b)$ for non-negative vectors $a$ and $b$ is $\widehat{a \cdot b} = \min_j(\widehat{a \cdot b})_j$, where $(\widehat{a \cdot b})_j = \sum_{k=1}^w count_a[j,k] * count_b[j,k]$. The algorithm to compute the inner product follows from point queries.
-		\textbf{Theorem 3:} The inner product $a \cdot b$ is less than or equal to the estimated inner product such that,
-		\begin{align}
-		a \cdot b \leq \widehat{a \cdot b} \\
-		Pr(\widehat{a \cdot b} \leq a \cdot b + \epsilon||a||_1||b||_1) = 1-\delta
-		\end{align}
+	\subsection{Algorithm: Non-negative case}
+		The estimate for the inner product $\mathit{Q}(a,b)$ for non-negative vectors $\vec{a}$ and $\vec{b}$ is $\widehat{\vec{a} \odot \vec{b}} = \min_j(\widehat{a \odot b})_j$, where $(\widehat{a \cdot b})_j = \sum_{k=1}^w count_a[j,k] * count_b[j,k]$. The algorithm to compute the inner product follows from point queries.
+
+        \textbf{Theorem 1:} The estimate $\widehat{\vec{a} \odot \vec{b}}$ has the following guarantees:
+        \begin{enumerate}[label=\textnormal{(\arabic*)}]
+            \item $a \cdot b \leq \widehat{a \cdot b}$
+            \item with probability at least $1 - \delta$, 
+            \begin{align}
+		        Pr(\widehat{a \cdot b} \leq a \cdot b + \varepsilon||a||_1||b||_1)
+            \end{align}
+        \end{enumerate}
 
 	\subsection{Proof of Theorem 3}
-		We represent the estimated inner product as the sum of the true inner product and collisions. By the pairwise independence of $h$,
+		We represent the estimated inner product as the sum of the true inner product and collisions. By the pairwise independence of all hash functions $h_j$, $1 \leq j \leq d$,
 		\begin{align}
-		(\widehat{a \cdot b})_j &= \sum_{i=1}^n a_ib_i + \sum_{p \neq q, h_j(p)=h_j(q)} a_pb_q \\
-		E\left[(\widehat{a \cdot b})_j - a \cdot b\right] &= E\left[\sum_{p \neq q, h_j(p)=h_j(q)} a_pb_q\right] \\
+		(\widehat{a \cdot b})_j &= \sum_{i=1}^n a_ib_i + \sum_{p \neq q, \,\,\ h_j(p)=h_j(q)} a_pb_q \\
+		E\left[(\widehat{a \cdot b})_j - a \cdot b\right] &= E\left[\sum_{p \neq q, \,\, h_j(p)=h_j(q)} a_pb_q\right] \\
 		&= \sum_{p \neq q}Pr(h_j(p) = h_j(q))a_pb_q \\
 		&\leq \sum_{p \neq q} \frac{\varepsilon}{\mathrm{e}}a_pb_q \\
 		&\leq \frac{\varepsilon}{\mathrm e}||a||_1||b||_1
@@ -340,39 +322,55 @@ words, respectively.
 		Where this follows by the reduction of the inner product computation as a series of point queries as outlined above. Applying the markov inequality,
 		\begin{align}
 		Pr(\widehat{a \cdot b} - a \cdot b > \varepsilon ||a||_1||b||_1) &\leq \frac{E[\widehat{a \cdot b} - a \cdot b]}{||a||_1||b||_1} \\
-		&\leq \frac{\frac{\varepsilon}{\mathrm e}||a||_1||b||_1}{\epsilon||a||_1||b||_1} \\
+		&\leq \frac{\frac{\varepsilon}{\mathrm e}||a||_1||b||_1}{\varepsilon||a||_1||b||_1} \\
 		& \leq 1/e \\
 		&\leq \delta
 		\end{align}
 
-\section{Range Query}
+\section{Range Query: Non-negative}
 A range query, denoted as: $\mathcal{Q}(l,r)$, requests the value:
 \begin{align*}
-    a[l,4] = \Sigma_{i=l}^r a_i
+    a[l,r] = \Sigma_{i=l}^r a_i
 \end{align*}
 And we denote our estimator based on the CM sketch as: $\hat a[l,r]$.\\\\
     \textbf{Procedure for estimation:}\\
     Keep $log_2n$ CM sketches. A single range query can be converted into at most $2log_2n$ dyadic range queries, and each dyadic range query can be converted into a single point query. A CM sketch is kept for every dyadic range, and we do a single point query for every dyadic range that makes up the desired range. The sum of all of the point queries is the result, $\hat a[l,r]$.\\\\
-    \textbf{Theorem 4: } $a[l,r] \leq \hat a[l,r]$. With probability at least $(1-\delta)$, $\hat a[l,r] \leq a[l,r] + 2\epsilon logn ||\bm{a}||_1$.\\ 
+    \textbf{Theorem 4: } $a[l,r] \leq \hat a[l,r]$. With probability at least $(1-\delta)$, $\hat a[l,r] \leq a[l,r] + 2\varepsilon logn ||\bm{a}||_1$.\\ 
     \textbf{Proof:} First, consider the concept of using dyadic ranges: Any range can be converted into a equivalent set of dyadic ranges, in the form of $[x2^y+1, ... , (x+1)2^y]$. For any range we desire, we can equate the construct of a set of dyadic ranges to constructing a tree: the root is the whole range, then its children are each half of the range, and this continues until we hit the leaves, which are sets of singular elements. In the context of a range query, we keep a CM sketch for each level in the tree, and every node in that level represents a value in that CM sketch. When we get an update, we update every CM sketch. Thus, the number of CM sketches we keep is the height of the tree, which is $log_2n$. When we get a range query, we can traverse the tree and, at each level, our range query will be covered by at most one node in the level. At worst, we must travel down the entire height of the tree twice, once for the lower bound of the range, and once for the upper bound of the range. Thus, we cover at most $log_2n$ levels for each bound, which means $2log_2n$ nodes are touched. Because each of these nodes can be queried as a single point query, we simply sum up, at most, $2log_2n$ point queries. \\\\
     We can then derive the error bound and probability. Because a single range query can be estimated using at most $2log_2n$ point queries, we can find the bound via:
 \begin{align*}
     \hat a[l,r] &= \sum_{i = l}^r \hat a_i + \sum_{i \neq j, h(i)=h(j)} a_i\\
     E[\hat a[l,r] - a[l,r]] &= E[\sum_{i \neq j, h(i)=h(j)} a_i]\\
     &= \sum_{i \neq j}Pr(h(i) = h(j)) a_i\\
-    &\leq \sum_{i!=j} \frac{\epsilon}{e} a_i\\
-    &\leq 2\frac{\epsilon}{e} logn ||a||_1
+    &\leq \sum_{i!=j} \frac{\varepsilon}{e} a_i\\
+    &\leq 2\frac{\varepsilon}{e} logn ||a||_1
 \end{align*}
 Where the error bound above is derived from the linearity of expectation from $2logn$ point queries. Thus, the probability bound is as follows:
 \begin{align*}
-    p(\hat a[l,r] - a[l,r] > 2\epsilon logn ||a||_1) &\leq \frac{E[\hat a[l,r] - a[l,r]]}{2\epsilon logn||a||_1}\\
-    &\leq \frac{2\frac{\epsilon}{e}logn ||a||_1}{2\epsilon logn ||a||_1}\\
+    p(\hat a[l,r] - a[l,r] > 2\varepsilon logn ||a||_1) &\leq \frac{E[\hat a[l,r] - a[l,r]]}{2\varepsilon logn||a||_1}\\
+    &\leq \frac{2\frac{\varepsilon}{e}logn ||a||_1}{2\varepsilon logn ||a||_1}\\
     &\leq \frac{1}{e}\\
     &\leq \delta
 \end{align*}
 \section{Applications}
 
 \subsection{Quantiles in the turnstile model}
+Define the $\phi$-quantiles of the cardinality
+\begin{align}
+    ||\vec{a}||_1 = \sum_{i = 1}^{n}|a_i(t)|
+\end{align}
+as the values within a multiset of finite size that split it into $\phi$ groups
+of equal size based on their rank $R$.  For example, the median of a set of data
+is the 2-quantile. 
+
+To obtain the $\phi$-quantiles, the elements are sorted and split as follows.
+The $k$th quantile is the element(s) with rank $R = k\phi||\vec{a}||_1$ for $k =
+0, \dots, 1/\phi$.  The $\varepsilon$-approximation for the $\phi$-quantiles
+accepts as the $k$-th quantile any of the  values with rank $(k\phi -
+\varepsilon)||\vec{a}||_1 \leq R \leq (k\phi + \varepsilon)||\vec{a}||_1$ for a
+given $\varepsilon < \phi$.
+
+
 The count-min sketch can be used to calculate the $\phi$-quantiles in the turnstile model.
 In this case, updates where $c_t < 0$ are called deletions, and $c_t > 0$ are called insertions.
 The value for each vector element $a_i$ is actually the number of instances of the elements
@@ -406,32 +404,32 @@ This improves the existing query time and update by a factor of more than $\frac
 The space requirements are improved by a factor of at least $\frac{34}{\varepsilon}$. 
 
 \subsection{Heavy Hitters}
-A potential application of the count min sketch is the heavy hitters problem. Given an input $A$ of length $n$ and a parameter $k$ we wish to return values that occur in the input at least $n/k$ times. There may be at most $k$ such heavy hitters, though there also may be none. This sketch provides a convenient way to find the heavy hitters of some data stream with a large input size such that maintaining a counter for each unique element is not feasible. We look at two cases:
+A potential application of the count min sketch is the heavy hitters problem. Given an input $A$ of length $n$ and a parameter $k$ we wish to return values that occur in the input at least $n/k$ times. There may be at most $k$ such heavy hitters, though there also may be none. This sketch provides a convenient way to find the heavy hitters of some data stream with a large input size for which  maintaining a counter for each unique element is not feasible. We look at two cases:
 \begin{enumerate}
 \item The cash register case: elements are only added
 \item The turnstile case: elements can be added or removed
 \end{enumerate}
 
 \subsubsection{Cash Register Case}
-Recall that the cash register case is for positive updates only. We can easily obtain $||\bm{a}||$ at any given point in time because it is simply: $\Sigma_{i=1}^t c_i$.We define a $\phi$ heavy hitter if the estimation of the point query, $Q(i_t) =  \hat a_{it} \geq \phi ||\bm{a}(t))||$. We can do this by maintaining a heap to store the items above the $phi||\bm{a}(t)||$ threshold. On any update, we check the lowest value in the heap, and if the update would be greater than the lowest item, we replace it in the heap. When we are finished with the stream, we do a final scan of all items in the heap, and return the ones which have a value over $\phi||\bm{a}||_1$.\\\\
-\textbf{Theorem 6: } We can identify the heavy hitters of a sequence of length $||\bm{a_i}||_1$ using space $O(\frac{1}{\epsilon}log(\frac{||\bm{a}||}{\delta}))$ and time $O(log(\frac{||\bm{a}||}{\delta}))$. Every item which occurs with count $\phi ||\bm{a}||_1$ is output, and with probability $(1-\delta)$, no items whose count is less than $(\phi - \epsilon)||\bm{a}||_1$ is output.\\\\
+We can easily obtain $||\bm{a}||_1$ at any given point in time because it is simply: $\Sigma_{i=1}^t c_i$.We define a $\phi$ heavy hitter if the estimation of the point query, $Q(i_t) =  \hat a_{it} \geq \phi ||\bm{a}(t))||_1$. We can do this by maintaining a heap to store the items above the $\phi||\bm{a}(t)||_1$ threshold. On any update, we check the lowest value in the heap, and if the update would be greater than the lowest item, we replace it in the heap. When we are finished with the stream, we do a final scan of all items in the heap, and return the ones which have a value over $\phi||\bm{a}||_1$.\\\\
+\textbf{Theorem 6: } We can identify the heavy hitters of a sequence of length $||\bm{a}||_1$ using space $O(\frac{1}{\varepsilon}log(\frac{||\bm{a}||}{\delta}))$ and time $O(log(\frac{||\bm{a}||}{\delta}))$. Every item which occurs with count at least
+$\phi ||\bm{a}||_1$ is output, and with probability $(1-\delta)$, no items whose count is less than $(\phi - \varepsilon)||\bm{a}||_1$ are output.
 
 \textbf{Proof idea:}\\
-Because we have only positive updates, and a CM sketch will only over estimate,
+Because we have only positive updates, and a CM sketch will only over estimate any $a_i$,
 it is not possible to miss any heavy hitter. Thus, we will never omit any heavy
 hitters. The bound on the error of outputting a non heavy hitter comes from the
 fact that a single point query outputs the estimate count of an item within
-$\epsilon$ of the actual value, with probabiltiy $(1-\delta)$. Because the heavy
+$\varepsilon$ of the actual value, with probabiltiy $(1-\delta)$. Because the heavy
 hitter relies purely on the point query, the error bound is the same, and thus,
-is as above.\\\\
-
+is as above.
 \subsubsection{Turnstile Case}
-The method outlined by Graham Cormode et. al.\footnote{Graham Cormode and S. Muthukrishnan. 2005. What's hot and what's not: tracking most frequent items dynamically. ACM Trans. Database Syst. 30, 1 (March 2005), 249-278. DOI=http://dx.doi.org/10.1145/1061318.106132} is adapted using the count min sketch. In this scheme, a sketch is maintained for each of the $\log n$ dyadic ranges. When an element is inserted or removed, a binary search is preformed while updating the counter at each level of the hierarchy. To find the heavy hitters, a parallel binary search is performed recursively searching each range for which the counter weight exceeds $(\phi + epsilon)||a||_1$. Since at each level there are at most $1/\phi$ items with frequency greater than $\phi$, the probability of failure for each sketch is set at $\delta\phi/(2\log n)$ to limit the number of output items whose true frequency is less than $\phi$. By doing this the total probability that there is any overestimated by more than $\epsilon$ is bounded by $\delta$ by the union bound.
+The method outlined by Graham Cormode et. al.\footnote{Graham Cormode and S. Muthukrishnan. 2005. What's hot and what's not: tracking most frequent items dynamically. ACM Trans. Database Syst. 30, 1 (March 2005), 249-278. DOI=http://dx.doi.org/10.1145/1061318.106132} is adapted using the count min sketch. In this scheme, a sketch is maintained for each of the $\log n$ dyadic ranges. These sketches are kept in a binary tree. When an update $(i_t, c_t)$ is received, a tree search for $a_i$ is performed. As you traverse down the tree, the CM sketch at each level is updated to reflect $(i_t, c_t)$. To find the heavy hitters, a parallel binary search is performed recursively searching each range for which the counter weight exceeds $(\phi + \varepsilon)||a||_1$. Since at each level there are at most $1/\phi$ items with frequency greater than $\phi$, the probability of failure for each sketch is set at $\delta\phi/(2\log n)$ to limit the number of output items whose true frequency is less than $\phi$. By doing this the total probability that there is any overestimated by more than $\varepsilon$ is bounded by $\delta$ by the union bound.
 
 Since the sketch at minimum reports the true count, we are guaranteed that the the true heavy hitters, if they exist, are reported. With probability $1 - \delta$, the algorithm will report a false heavy hitter.
 
 \textbf{Theorem 7:} \\
-The algorithm uses space $O((1/\epsilon)\log n \log (2 \log n/(\delta \phi)))$ and time $O(\log n \times \log(2 \log n/(\delta\phi)))$ per update. Every item with frequency at least $(\phi + \epsilon)||a||_1$ is reported, and with probability $1-\delta$ no item whose frequency is less than $\phi ||a||_1$ is output.
+The algorithm uses space $O((1/\varepsilon)\log n \log (2 \log n/(\delta \phi)))$ and time $O(\log n \times \log(2 \log n/(\delta\phi)))$ per update. Every item with frequency at least $(\phi + \varepsilon)||a||_1$ is reported, and with probability $1-\delta$ no item whose frequency is less than $\phi ||a||_1$ is output.
 
 % dyadic range - log n versus 2log n
 % 1/e < e-d
