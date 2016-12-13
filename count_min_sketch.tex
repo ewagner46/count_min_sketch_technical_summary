@@ -335,16 +335,16 @@ words, respectively.
 		\end{align}
 		This follows by the treatment of the inner product computation as a series of point queries. Applying the Markov inequality we bound the probability of the error.
 		\begin{align}
-		Pr(\widehat{a \cdot b} - a \cdot b > \varepsilon ||a||_1||b||_1) &\leq \frac{E[\widehat{a \cdot b} - a \cdot b]}{||a||_1||b||_1} \\
+		Pr(\widehat({a \cdot b})_j - a \cdot b > \varepsilon ||a||_1||b||_1) &\leq \frac{E[\widehat{a \cdot b} - a \cdot b]}{||a||_1||b||_1} \\
 		&\leq \frac{\frac{\varepsilon}{\mathrm e}||a||_1||b||_1}{\varepsilon||a||_1||b||_1} \\
 		& \leq 1/e
         \end{align}
-        As defined in theorem 1, $d = \ln 1/\delta$. As a result,
+        As defined in the construction of the CM sketch, $d = \ln 1/\delta$, so $\delta = e^{-d}$. The probability the error exceeds this threshold for a single estimator is less than $1/e$ as shown above. Since we take the minimum inner product as our estimate, we compute the probability all estimators exceed this threshold.
         \begin{align}
-        e^d &= e^{\ln 1/\delta} = 1/\delta \\
-        e^{-1} &< e^d \\
+        \bigcap_{1\leq j \leq d} Pr((\widehat{a \cdot b})_j - a \cdot b > \varepsilon ||a||_1||b||_1) &= \left(\frac{1}{\mathrm e}\right)^d \\
         &\leq \delta
         \end{align}
+        for all $d > 0$.
 
 
 \section{Range Query: Non-negative}
