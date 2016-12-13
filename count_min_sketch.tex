@@ -32,7 +32,7 @@
 
 \newcommand{\sq}{\mathit{Q}_i}
 \DeclarePairedDelimiter\ceil{\lceil}{\rceil}
-\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+\DeclarePairedDelimiter\floor{\lfloor   }{\rfloor}
 
 \hypersetup{
     colorlinks   = true,
@@ -151,6 +151,8 @@ Update_CM_Sketch(count, (*$(i_t, c_t)$*))
     \end{enumerate}
 \end{enumerate}
 }
+
+
 \section{Approximate Point Queries using CM sketches}
 
 \subsection{Non-Negative Case}
@@ -278,9 +280,11 @@ This estimate is calculated in $O(\ln \frac{1}{\delta})$ as the minimum of a mul
 The space complexity is $\left(2 + \ceil{\frac{e}{\varepsilon}}\right)\ceil{\ln \frac{1}{\delta}}$ words, as the dimensions of the matrix are 
 $w \times d = \ceil{\frac{e}{\varepsilon}}\times\ceil{\ln \frac{1}{\delta}}$.
 
-\comment{All previous analyses of sketch algorithm use Chebyshev in their estimation analysis, yielding a dependency on
+\begin{comment}
+All previous analyses of sketch algorithm use Chebyshev in their estimation analysis, yielding a dependency on
 $\frac{1}{\varepsilon^2}$ for the space complexity.  Using Markov in this analysis yields a tighter bound,
-with a dependency $\frac{1}{\varepsilon}$.}
+with a dependency $\frac{1}{\varepsilon}$.
+\end{comment}
 
 \subsection{General Case}
 \subsubsection{Algorithm}
@@ -302,33 +306,46 @@ words, respectively.
 
 \section{Inner Product Query}
 	\subsection{Algorithm: Non-negative case}
-		The estimate for the inner product $\mathit{Q}(a,b)$ for non-negative vectors $\vec{a}$ and $\vec{b}$ is $\widehat{\vec{a} \odot \vec{b}} = \min_j(\widehat{a \odot b})_j$, where $(\widehat{a \cdot b})_j = \sum_{k=1}^w count_a[j,k] * count_b[j,k]$. The algorithm to compute the inner product follows from point queries.
-
-        \textbf{Theorem 1:} The estimate $\widehat{\vec{a} \odot \vec{b}}$ has the following guarantees:
+        Two CM sketches are kept, one for vector $a$ and one for vector $b$. Updates to each sketch take the form $(v, i[c]): \vec v[i] \leftarrow \vec v[i] + c$. To compute the estimated inner product $\widehat{\vec{a} \odot \vec{b}}$, we compute compute the inner product of each row pair $count_a[j] \odot count_b[j]$ for all $j \in d$, taking the minimum. Formally, the estimate for the inner product $\mathit{Q}(a,b)$ for non-negative vectors $\vec{a}$ and $\vec{b}$ is $\widehat{\vec{a} \odot \vec{b}} = \min_j(\widehat{\vec a \odot \vec b})_j$, where $(\widehat{\vec a \cdot \vec b})_j = \sum_{k=1}^w count_a[j,k] * count_b[j,k]$. \\
+        \textbf{Theorem 3:}\\
+        The estimate $\widehat{\vec{a} \odot \vec{b}}$ has the following guarantees:
         \begin{enumerate}[label=\textnormal{(\arabic*)}]
-            \item $a \cdot b \leq \widehat{a \cdot b}$
+            \item $\vec a \cdot \vec b \leq \widehat{\vec a \cdot \vec b}$
             \item with probability at least $1 - \delta$, 
             \begin{align}
-		        Pr(\widehat{a \cdot b} \leq a \cdot b + \varepsilon||a||_1||b||_1)
+		        Pr(\widehat{\vec a \cdot \vec b} \leq \vec a \cdot \vec b + \varepsilon||\vec a||_1||\vec b||_1)
             \end{align}
         \end{enumerate}
 
 	\subsection{Proof of Theorem 3}
 		We represent the estimated inner product as the sum of the true inner product and collisions. By the pairwise independence of all hash functions $h_j$, $1 \leq j \leq d$,
 		\begin{align}
-		(\widehat{a \cdot b})_j &= \sum_{i=1}^n a_ib_i + \sum_{p \neq q, \,\,\ h_j(p)=h_j(q)} a_pb_q \\
-		E\left[(\widehat{a \cdot b})_j - a \cdot b\right] &= E\left[\sum_{p \neq q, \,\, h_j(p)=h_j(q)} a_pb_q\right] \\
-		&= \sum_{p \neq q}Pr(h_j(p) = h_j(q))a_pb_q \\
+		(\widehat{\vec a \cdot \vec b})_j &= \sum_{i=1}^n a_ib_i + \sum_{p \neq q, \,\,\ h_j(p)=h_j(q)} a_pb_q
+        \end{align}
+        Taking the expected value of the error term shows that the error is dependent on the probability of collision.
+        \begin{align}
+		E\left[(\widehat{\vec a \cdot \vec b})_j - a \cdot b\right] &= E\left[\sum_{p \neq q, \,\, h_j(p)=h_j(q)} a_pb_q\right] \\
+		&= \sum_{p \neq q}Pr(h_j(p) = h_j(q))a_pb_q
+        \end{align}
+
+        Using the results from Theorem 1, we know the probability of collision is $\varepsilon/\mathrm r$ where $\varepsilon$ is the parameter used during sketch construction.
+        \begin{align}
 		&\leq \sum_{p \neq q} \frac{\varepsilon}{\mathrm{e}}a_pb_q \\
 		&\leq \frac{\varepsilon}{\mathrm e}||a||_1||b||_1
 		\end{align}
-		Where this follows by the reduction of the inner product computation as a series of point queries as outlined above. Applying the markov inequality,
+		This follows by the treatment of the inner product computation as a series of point queries. Applying the Markov inequality we bound the probability of the error.
 		\begin{align}
 		Pr(\widehat{a \cdot b} - a \cdot b > \varepsilon ||a||_1||b||_1) &\leq \frac{E[\widehat{a \cdot b} - a \cdot b]}{||a||_1||b||_1} \\
 		&\leq \frac{\frac{\varepsilon}{\mathrm e}||a||_1||b||_1}{\varepsilon||a||_1||b||_1} \\
-		& \leq 1/e \\
-		&\leq \delta
-		\end{align}
+		& \leq 1/e
+        \end{align}
+        As defined in theorem 1, $d = \ln 1/\delta$. As a result,
+        \begin{align}
+        e^d &= e^{\ln 1/\delta} = 1/\delta \\
+        e^{-1} &< e^d \\
+        &\leq \delta
+        \end{align}
+
 
 \section{Range Query: Non-negative}
 A range query, denoted as: $\mathcal{Q}(l,r)$, requests the value:
@@ -337,13 +354,13 @@ A range query, denoted as: $\mathcal{Q}(l,r)$, requests the value:
 \end{align*}
 And we denote our estimator based on the CM sketch as: $\hat a[l,r]$. It is possible to simply query all values in the range, $\hat a[l,r] = \sum_{i=l}^r \hat a_i$, however, this query would take linear time with respect to the input. Additionally, our error bound would be in terms of the length of the range. However, we want all of our queries to run in polylogarithmic time, as well as have error bounds in terms of the size of the input, $||a||_1$. Thus, we can utilize dyadic ranges to help address both of these issues.
 \subsection{Dyadic ranges}
-For any range, we can create a set of dyadic ranges by splitting the range in half to get two ranges of half the size. We can continually do this, until we have ranges of size 1. We can think of the construction of a set of dyadic ranges like creating a tree-like structure:\\
-\includegraphics[scale=0.3]{dyadic_ranges.png}\\
+For any range, we can create a set of dyadic ranges by splitting the range in half to get two ranges of half the size. We can continually do this, until we have ranges of size 1. We can think of the construction of a set of dyadic ranges like creating a tree-like structure:
+\begin{center}\includegraphics[scale=0.3]{dyadic_ranges.png}\end{center}
 \subsection{Range Query: updates}
-The update procedure is as follows: Keep $log_2n$ CM sketches. Each CM sketch represents one level of our "tree" of dyadic ranges, and the keys for that CM sketch are the ranges within that level:\\
-\includegraphics[scale=0.3]{dyadic_ranges_cm.png}\\
-When we get an update, $(i_t, c_t)$, we simply update each CM sketch, with the key as the range that covers the value $i_t$:\\
-\includegraphics[scale=0.3]{range_update.png}\\
+The update procedure is as follows: Keep $\log_2n$ CM sketches. Each CM sketch represents one level of our "tree" of dyadic ranges, and the keys for that CM sketch are the ranges within that level:
+\begin{center}\includegraphics[scale=0.3]{dyadic_ranges_cm.png}\end{center}
+When we get an update, $(i_t, c_t)$, we simply update each CM sketch, with the key as the range that covers the value $i_t$:
+\begin{center}\includegraphics[scale=0.3]{range_update.png}\end{center}
 We thus have the following pseudocode for an update:
 \begin{lstlisting}[escapeinside={(*}{*)}]
 Range_Query_Update(counts, ((*$i_t, c_t$*)))
@@ -352,9 +369,9 @@ Range_Query_Update(counts, ((*$i_t, c_t$*)))
     return counts;
 \end{lstlisting}
 \subsection{Range Query: estimation}
-Then, in order to estimate a range query, $\hat a[l,r]$, we identify which dyadic ranges contribute to our overall range, and query those in each appropriate CM sketch.\\ 
-\includegraphics[scale=0.3]{range_estimate.png}\\
-A single range query can be converted into at most $2log_2n$ dyadic range queries, because in the worst case, both sides of the range must fully travel through the height of the tree. Because we store each dyadic range as a key value in a CM sketch, we do a total of, at most, $2log_2n$ point queries. We then sum together the point queries, to get our total range query estimate. In pseudocode form, the procedure for estimation is as follows:
+Then, in order to estimate a range query, $\hat a[l,r]$, we identify which dyadic ranges contribute to our overall range, and query those in each appropriate CM sketch.
+\begin{center}\includegraphics[scale=0.3]{range_estimate.png}\end{center}
+A single range query can be converted into at most $2\log_2n$ dyadic range queries, because in the worst case, both sides of the range must fully travel through the height of the tree. Because we store each dyadic range as a key value in a CM sketch, we do a total of, at most, $2\log_2n$ point queries. We then sum together the point queries, to get our total range query estimate. In pseudocode form, the procedure for estimation is as follows:
 \begin{lstlisting}[escapeinside={(*}{*)}]
 Estimate_Range_Query(counts, a[l,r])
     (*$s \leftarrow 0$*)
@@ -367,11 +384,11 @@ Estimate_Range_Query(counts, a[l,r])
                     (*$s \leftarrow s$*) +  Estimate_Point_Query(range((*$l_i,r_i$*)))
     return s;
 \end{lstlisting}
-Finally, recall the idea behind using dyadic ranges: to reduce the estimation to be polylogarithmic in the size of the input. A single point query update/estimation takes $log(\frac{1}{\delta})$ time. In order to do a single update, we update $O(logn)$ CM sketches. When we estimate our range query, we do $O(logn)$ point query estimations. Thus, for both an update and an estimation, our time is reduced to: $O(log(n)log(\frac{1}{\delta}))$.\\
+Finally, recall the idea behind using dyadic ranges: to reduce the estimation to be polylogarithmic in the size of the input. A single point query update/estimation takes $\log(\frac{1}{\delta})$ time. In order to do a single update, we update $O(\log n)$ CM sketches. When we estimate our range query, we do $O(\log n)$ point query estimations. Thus, for both an update and an estimation, our time is reduced to: $O(\log(n)\log(\frac{1}{\delta}))$.\\
     \textbf{Theorem 4: }\
 \begin{enumerate}[label=\textnormal{(\arabic*)}]
     \item $a[l,r] \leq \hat a[l,r]$.\\
-    \item With probability at least $(1-\delta)$, $\hat a[l,r] \leq a[l,r] + 2\varepsilon logn ||\bm{a}||_1$
+    \item With probability at least $(1-\delta)$, $\hat a[l,r] \leq a[l,r] + 2\varepsilon \log n ||\bm{a}||_1$
 \end{enumerate}
     \textbf{Proof:}\\
 Our procedure for estimation covers exactly the range [l,r]. We are summing up multiple point queries, and thus, based on the previous proof, (1) holds. For (2):
@@ -381,12 +398,12 @@ Our procedure for estimation covers exactly the range [l,r]. We are summing up m
     &= E[\sum_{i \neq j, h(i)=h(j)} a_i]\\
     &= \sum_{i \neq j}Pr(h(i) = h(j)) a_i\\
     &\leq \sum_{i!=j} \frac{\varepsilon}{e} a_i\\
-    &\leq 2\frac{\varepsilon}{e} logn ||a||_1
+    &\leq 2\frac{\varepsilon}{e} \log n ||a||_1
 \end{align*}
-Where the error bound above is derived from the linearity of expectation from $2logn$ point queries. Thus, the probability bound is as follows:
+Where the error bound above is derived from the linearity of expectation from $2\log n$ point queries. Thus, the probability bound is as follows:
 \begin{align*}
-    p(\hat a[l,r] - a[l,r] > 2\varepsilon logn ||a||_1) &\leq \frac{E[\hat a[l,r] - a[l,r]]}{2\varepsilon logn||a||_1}\\
-    &\leq \frac{2\frac{\varepsilon}{e}logn ||a||_1}{2\varepsilon logn ||a||_1}\\
+    p(\hat a[l,r] - a[l,r] > 2\varepsilon \log n ||a||_1) &\leq \frac{E[\hat a[l,r] - a[l,r]]}{2\varepsilon \log n||a||_1}\\
+    &\leq \frac{2\frac{\varepsilon}{e}\log n ||a||_1}{2\varepsilon \log n ||a||_1}\\
     &\leq \frac{1}{e}\\
     &\leq \delta
 \end{align*}
@@ -449,6 +466,7 @@ A potential application of the count min sketch is the heavy hitters problem. Gi
 \end{enumerate}
 
 \subsubsection{Cash Register Case}
+\textbf{Algorithm:}\\
 We can easily obtain $||\bm{a}||_1$ at any given point in time because it is simply: $\Sigma_{i=1}^t c_i$.We define a $\phi$ heavy hitter if the estimation of the point query, $Q(i_t) =  \hat a_{it} \geq \phi ||\bm{a}(t))||_1$. We can do this by maintaining a heap to store the items above the $\phi||\bm{a}(t)||_1$ threshold. On any update, we check the lowest value in the heap, and if the update would be greater than the lowest item, we replace it in the heap. When we are finished with the stream, we do a final scan of all items in the heap, and return the ones which have a value over $\phi||\bm{a}||_1$.\\\\
 \textbf{Theorem 6: } We can identify the heavy hitters of a sequence of length $||\bm{a}||_1$ using space $O(\frac{1}{\varepsilon}log(\frac{||\bm{a}||}{\delta}))$ and time $O(log(\frac{||\bm{a}||}{\delta}))$. Every item which occurs with count at least
 $\phi ||\bm{a}||_1$ is output, and with probability $(1-\delta)$, no items whose count is less than $(\phi - \varepsilon)||\bm{a}||_1$ are output.
@@ -459,12 +477,15 @@ it is not possible to miss any heavy hitter. Thus, we will never omit any heavy
 hitters. In order to calculate the error bound, we simply scale the parameter, $\delta$, such that the probability of erroring at any point throughout the stream is bounded by $(1-\delta)$. This requires using the union bound for each point in the stream, and solving for the appropriate $\delta$.
 
 \subsubsection{Turnstile Case}
-The method outlined by Graham Cormode et. al.\footnote{Graham Cormode and S. Muthukrishnan. 2005. What's hot and what's not: tracking most frequent items dynamically. ACM Trans. Database Syst. 30, 1 (March 2005), 249-278. DOI=http://dx.doi.org/10.1145/1061318.106132} is adapted using the count min sketch. In this scheme, a sketch is maintained for each of the $\log n$ dyadic ranges. These sketches are kept in a binary tree. When an update $(i_t, c_t)$ is received, a tree search for $a_i$ is performed. As you traverse down the tree, the CM sketch at each level is updated to reflect $(i_t, c_t)$. To find the heavy hitters, a parallel binary search is performed recursively searching each range for which the counter weight exceeds $(\phi + \varepsilon)||a||_1$. Since at each level there are at most $1/\phi$ items with frequency greater than $\phi$, the probability of failure for each sketch is set at $\delta\phi/(2\log n)$ to limit the number of output items whose true frequency is less than $\phi$. By doing this the total probability that there is any overestimated by more than $\varepsilon$ is bounded by $\delta$ by the union bound.
-
-Since the sketch at minimum reports the true count, we are guaranteed that the the true heavy hitters, if they exist, are reported. With probability $1 - \delta$, the algorithm will report a false heavy hitter.
+\textbf{Algorithm:}\\
+The method outlined by Graham Cormode et. al.\footnote{Graham Cormode and S. Muthukrishnan. 2005. What's hot and what's not: tracking most frequent items dynamically. ACM Trans. Database Syst. 30, 1 (March 2005), 249-278. DOI=http://dx.doi.org/10.1145/1061318.106132} is adapted using the count min sketch. In this scheme, a sketch is maintained for each of the $\log n$ dyadic ranges. These sketches are kept in a binary tree. When an update $(i_t, c_t)$ is received, a tree search for $a_i$ is performed. As the tree is traversed, the CM sketch at each level is updated to reflect $(i_t, c_t)$. To find the heavy hitters, a binary search is performed recursively searching each range for which the counter weight exceeds $(\phi + \varepsilon)||a||_1$.
 
 \textbf{Theorem 7:} \\
-The algorithm uses space $O((1/\varepsilon)\log n \log (2 \log n/(\delta \phi)))$ and time $O(\log n \times \log(2 \log n/(\delta\phi)))$ per update. Every item with frequency at least $(\phi + \varepsilon)||a||_1$ is reported, and with probability $1-\delta$ no item whose frequency is less than $\phi ||a||_1$ is output.
+The algorithm uses space $O((1/\varepsilon)\log n \log (2 \log n/(\delta \phi)))$ and time $O(\log n \times \log(2 \log n/(\delta\phi)))$ per update. Every item with frequency at least $(\phi + \varepsilon)||a||_1$ is reported, and with probability $1-\delta$ no item whose frequency is less than $\phi ||a||_1$ is output.\\
+
+\textbf{Proof idea:}\\
+Since at each level there are at most $1/\phi$ items with frequency greater than $\phi$, the probability of failure for each sketch is set at $\delta\phi/(2\log n)$ to limit the number of output items whose true frequency is less than $\phi$. By doing this the total probability that there is any overestimated by more than $\varepsilon$ is bounded by $\delta$ by the union bound.
+Since the sketch at minimum reports the true count, we are guaranteed that the the true heavy hitters, if they exist, are reported. With probability $1 - \delta$, the algorithm will report a false heavy hitter.
 
 % dyadic range - log n versus 2log n
 % 1/e < e-d
