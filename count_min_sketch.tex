@@ -102,9 +102,9 @@ which will be described in section \ref{sec:applications}.
 \section{State of the art}
 Sketches have been commonly used to help analyze large streams of data. These sketches allow for the following types of queries: $L_1$ and $L_2$ norms, number of distinct items in a sequence, join size of relations, range sum queries, and more. Although these data structures have proved to be very powerful, there are a few key drawbacks that limit the effectiveness of these sketches:
 \begin{enumerate}
-    \item Common sketches typically have a $\Omega(\frac{1}{\varepsilon^2})$ multiplicative factor. For common uses of $\varepsilon$, like 0.1 or 0.01, this scaling can quickly become too expensive.
-    \item Many sketches take linear time (in the size of the sketch) to do a single update[2,21]. 
-    \item Many sketches require $p$-wise independent hash functions[2]. This is not trivial, and is especially difficult in hardware applications.
+    \item Common sketches (AMS sketch, Count Sketch, Random subset-sums)  typically use $\Omega(\frac{1}{\varepsilon^2})$ space. For common uses of $\varepsilon$, like 0.1 or 0.01, this scaling can quickly become too expensive.
+    \item Many sketches take linear time (in the size of the sketch) to do a single update(AMS sketch, Random subset-sums). 
+    \item Many sketches require $p$-wise independent hash functions (AMS sketch). This is not trivial, and is especially difficult in hardware applications.
     \item Some sketches can only handle one particular query.
     \item Many sketches use analysis that hides large constants.
 \end{enumerate}
@@ -362,7 +362,7 @@ A range query, denoted as: $\mathcal{Q}(l,r)$, requests the value:
 \begin{align*}
     a[l,r] = \sum_{i=l}^r a_i
 \end{align*}
-And we denote our estimator based on the CM sketch as: $\hat a[l,r]$. It is possible to simply query all values in the range, $\hat a[l,r] = \sum_{i=l}^r \hat a_i$, however, this query would take linear time with respect to the input. Additionally, our error bound would be in terms of the length of the range. However, we want all of our queries to run in polylogarithmic time, as well as have error bounds in terms of the size of the input. Thus, we can utilize dyadic ranges to help address both of these issues.
+And we denote our estimator based on the CM sketch as: $\hat a[l,r]$. It is possible to simply query all values in the range, $\hat a[l,r] = \sum_{i=l}^r \hat a_i$, however, this query would take linear time with respect to the input. Additionally, our error bound would have an extra multiplicative term in the length of the range, $||[l,r]||_1$. We can utilize dyadic ranges to help address both of these issues.
 \subsection{Dyadic ranges}
 For any range, we can create a set of dyadic ranges by splitting the range in half to get two ranges of half the size. We can continually do this, until we have ranges of size 1. We can think of the construction of a set of dyadic ranges as creating a tree-like structure:
 \begin{center}\includegraphics[scale=0.3]{dyadic_ranges.png}\end{center}
@@ -393,7 +393,7 @@ Estimate_Range_Query(counts, a[L,R], i, l, r)
             Estimate_Range_Query(counts, a[L,R], (*$i+1, \frac{l+r}{2} + 1, r$*))
 \end{lstlisting}
 Where $i$ denotes the level that we are looking at in our tree of dyadic ranges, $count_i$ represents the CM sketch of that level, and each recursive call simply alters the range we are looking for, along with going down one level in our tree.\\\\
-Finally, recall the idea behind using dyadic ranges: to reduce the estimation to be polylogarithmic in the size of the input. A single point query update/estimation takes $\log(\frac{1}{\delta})$ time. In order to do a single update, we update $O(\log n)$ CM sketches. When we estimate our range query, we do $O(\log n)$ point query estimations. Thus, for both an update and an estimation, our time is reduced to: $O(\log(n)\log(\frac{1}{\delta}))$.
+Finally, recall the idea behind using dyadic ranges: to reduce the estimation to be polylogarithmic in the size of the input. A single point query update/estimation takes $\log(\frac{1}{\delta})$ time. In order to do a single update, we update $O(\log n)$ CM sketches. When we estimate our range query, we do $O(\log n)$ point query estimations. Thus, for both an update and an estimation, our time is reduced to $O(\log(n)\log(\frac{1}{\delta}))$.
 \subsection{Theorem 4: }
 \begin{enumerate}[label=\textnormal{(\arabic*)}]
     \item $a[l,r] \leq \hat a[l,r]$.\\
@@ -411,11 +411,9 @@ Thus, we show:
     \hat a[l,r] &= \sum_{range_i \in range[l,r]} a_{range_i} + \sum_{i \neq k, h_j(range_i) = h_j(range_k)} a_{range_i}\\
     E[\hat a_j[l,r] - a[l,r]] &= E[\sum_{i=1}^r a_{range_i} + \sum_{i \neq k, h_j(range_i)=h_j(range_k)} a_{range_i} - \sum_{i=1}^r a_{range_i}]\\
     &= E[\sum_{i \neq k, h_j(i)=h_j(k)} a_{range_i}]\\
-    &= \sum_{i \neq k}Pr(h_j(range_i) = h_j(range_k)) a_{range_i}\\
-    &\leq \sum_{i!=k} \frac{\varepsilon}{\mathrm e} a_{range_i}\\
     &\leq 2\frac{\varepsilon}{\mathrm e} \log n ||a||_1
 \end{align*}
-Where the error probability of a collision for a single point query is defined as $\frac{\varepsilon}{\mathrm e}$ (shown in theorem 1). We do at most $2log_2n$ point queries, and thus, the error bound is defined as above. We can then use the markov inequality to bound the error:
+Where the error for a single point query is $\frac{\varepsilon}{\mathrm e}||a||_1$, and we do at most $2log_2n$ point queries. Thus, the error is bounded as above. We can then use the markov inequality to bound the error probability:
 \begin{align*}
     p(\hat a_j[l,r] - a[l,r] > 2\varepsilon \log n ||a||_1) &\leq \frac{E[\hat a_j[l,r] - a[l,r]]}{2\varepsilon \log n||a||_1}\\
     &\leq \frac{2\frac{\varepsilon}{\mathrm e}\log n ||a||_1}{2\varepsilon \log n ||a||_1}\\
