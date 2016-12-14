@@ -1,0 +1,45 @@
+AMS
+@INPROCEEDINGS{AGMS99,
+author={N. Alon, P. Gibbons, Y. Matias, M. Szegedy}
+title={Tracking join and self-join sizes in limited storage}
+booktitle={Eighteenth ACM Symposium on Principles of Database Systems}
+year={1999}
+pages={10-20},
+}
+
+2
+@INPROCEEDINGS{AMS96,
+author={N. Alon, Y. Matias, M. Szegedy}
+title={The space complexity of approximating the frequency moments}
+booktitle={Twenty-eighth annual ACM symposium on the theory of computing}
+year={1996}
+pages={20-29},
+}
+
+
+5
+@INPROCEEDINGS{CCF02,
+author={M. Charikar, K. Chen, M. Farach-Colton}
+title={Finding frequent items in data streams}
+booktitle={International Colloquium on Automata, Languages, and Programming}
+year={2002}
+pages={693-703},
+}
+
+8
+@INPROCEEDINGS{CM03,
+author={G. Cormode, S. Muthukrishnan, D. Srivastava}
+title={Finding heirarchical heavy hitters in data streams}
+booktitle={International Conference on Very Large Data Bases}
+year={2003}
+pages={296-306},
+}
+
+21
+@INPROCEEDINGS{GKMS02,
+author={A.C. Gilbert, Y. Kotidis, S. Muthukrishnan, M. Straus}
+title={How to summarize the universe: dynamic maintenance of quantiles}
+booktitle={28th International Conference on Very Large Data Bases}
+year={2002}
+pages={454-465},
+}
