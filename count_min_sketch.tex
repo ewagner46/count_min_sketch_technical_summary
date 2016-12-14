@@ -30,7 +30,7 @@
 \usepackage{graphicx}
 \graphicspath{{images/}}
 
-\newcommand{\sq}{\mathit{Q}_i}
+\newcommand{\sq}{\mathit{Q}}
 \DeclarePairedDelimiter\ceil{\lceil}{\rceil}
 \DeclarePairedDelimiter\floor{\lfloor   }{\rfloor}
 
@@ -95,18 +95,14 @@ of a stream using a single type of data structure.  It can be used to approximat
 These queries can be used for more complex data stream functions, such as $\phi$-quantiles and heavy hitters,
 which will be described in section \ref{sec:applications}.
 
-\begin{enumerate}
-    % not integers
-    \item \textbf{Heavy hitters:}
-\end{enumerate}
 \section{State of the art}
 Sketches have been commonly used to help analyze large streams of data. These sketches allow for the following types of queries: $L_1$ and $L_2$ norms, number of distinct items in a sequence, join size of relations, range sum queries, and more. Although these data structures have proved to be very powerful, there are a few key drawbacks that limit the effectiveness of these sketches:
 \begin{enumerate}
     \item Common sketches (AMS sketch, Count Sketch, Random subset-sums)  typically use $\Omega(\frac{1}{\varepsilon^2})$ space. For common uses of $\varepsilon$, like 0.1 or 0.01, this scaling can quickly become too expensive.
     \item Many sketches take linear time (in the size of the sketch) to do a single update(AMS sketch, Random subset-sums). 
-    \item Many sketches require $p$-wise independent hash functions (AMS sketch). This is not trivial, and is especially difficult in hardware applications.
+    \item Some sketches require $4$-wise independent hash functions (AMS sketch). This is not trivial, and is especially difficult in hardware applications.
     \item Some sketches can only handle one particular query.
-    \item Many sketches use analysis that hides large constants.
+    \item Many sketches use analysis that hides large constants (Count Sketch).
 \end{enumerate}
 The count-min sketch reduces these problems in the following ways:
 \begin{enumerate}
@@ -116,7 +112,11 @@ The count-min sketch reduces these problems in the following ways:
     \item The sketch can answer several queries and has numerous applications.
     \item All constants are explicit and small.
 \end{enumerate}
-In particular, notice that the space has been reduce from $\frac{1}{\varepsilon^2}$ to $\frac{1}{\varepsilon}$ using a CMS, and the time for an update has been reduced from $\frac{1}{\varepsilon^2}$ to $\ln{\frac{1}{\delta}}$.
+In particular, notice that the space has been reduced from
+$\frac{1}{\varepsilon^2}$ to $\frac{1}{\varepsilon}$ using a CMS, and the time
+for an update has been reduced from $\frac{1}{\varepsilon^2}\ln{\frac{1}{\delta}}$
+to $\ln{\frac{1}{\delta}}$ (count sketch also has this update time, however).
+
 \section{How to make a count-min sketch}
 Note $e$ is the base of the natural logarithm function, $\ln$. The count-min
 sketch is an array with $w$ columns and $d$ rows where:
@@ -205,7 +205,7 @@ range.
     X_{i, j} = \sum_{k = 1}^{n}I_{i, j, k} a_k
 \end{align}
 In other words, $X_{i, j}$ is the sum of all corresponding vector values whose indices
-collide $i$ under $h_j$. Trivially, we can then state that
+$i$ collide under $h_j$. Trivially, we can then state that
 \begin{align}\label{eq:count-def}
     count[j, h_j(i)] = a_i + X_{i, j} 
 \end{align}
@@ -259,7 +259,6 @@ Then, subtracting $a_i$ from both sides, and using equation \ref{eqn:expectation
     Pr[\forall_{j \cdot} a_i + X_{i, j} > a_i + \varepsilon ||\vec{a}||_1] \geq Pr[\forall_{j \cdot} X_{i, j} > e E(X_{i, j})]
 \end{align}
 
-\pagebreak
 Finally, consider the Markov inequality:
 \begin{align}
     Pr[X > aE[X]] \leq \frac{1}{a}
@@ -269,7 +268,7 @@ Since this is the non-negative case and thus $X_{i, j}$ is non-negative, we can 
     Pr[X_{i, j} > e E(X_{i, j})] \leq \frac{1}{e} \\
     \implies \bigcap_{1 \leq j \leq d} Pr[X_{i, j} > e E(X_{i, j})] \leq \left(\frac{1}{e}\right)^d \\
     \implies Pr[\forall_{j \cdot} X_{i, j} > e E(X_{i, j})] \comment{\leq \frac{E(X_{i, j})}{a_i + \varepsilon||a||_1} \leq \frac{\ceil{\frac{\varepsilon}{e}} ||\vec{a}||_1}{a_i + \varepsilon||a||_1}}
-      < e^{-d} < \delta
+      \leq e^{-d} \leq \delta
 \end{align}
 This estimate is calculated in $O(\ln \frac{1}{\delta})$ as the minimum of a
 multiset can be taken in linear time, and we are taking it across $d = O(\ln
@@ -283,15 +282,13 @@ The space complexity is $O\left({\frac{e}{\varepsilon}}{\ln
 \frac{1}{\delta})$ is also required to store the hash functions.  The constants
 are clearly small, since this is the total space requirement.
 
-\begin{comment}
-All previous analyses of sketch algorithm use Chebyshev in their estimation analysis, yielding a dependency on
+All previous analyses of sketch algorithms use Chebyshev in their estimation analysis, yielding a dependency on
 $\frac{1}{\varepsilon^2}$ for the space complexity.  Using Markov in this analysis yields a tighter bound,
 with a dependency $\frac{1}{\varepsilon}$.
-\end{comment}
 
 \subsection{General Case}
 \subsubsection{Algorithm}
-The algorithm is identical to the non-negative case, except that we take the median of the multiset:
+The algorithm is identical to the non-negative case, except that we take the median among the rows:
 \begin{align}
     \sq(i) = \hat{a}_i = \text{median}_j count[j, h_j(i)]
 \end{align}
@@ -301,32 +298,41 @@ The algorithm is identical to the non-negative case, except that we take the med
     a_i - 3\varepsilon||\vec{a}||_1 \leq \hat{a}_i \leq a_i + 3\varepsilon||\vec{a}||_1. 
 \end{align}
 Here, since the array elements can be negative, we can no longer use Markov, and instead must apply Chernoff
-bounds. TODO more details
+bounds. 
 
 The time and space complexity are the same as the non-negative case: $O(\ln
-\frac{1}{\delta})$ time and $(2 + \frac{e}{\varepsilon})\ln \frac{1}{\delta}$
+\frac{1}{\delta})$ time and $O(\frac{e}{\varepsilon}\ln \frac{1}{\delta})$
 words, respectively. {
 
 \section{Inner Product Query}
 	\subsection{Algorithm: Non-negative case}
-        Two CM sketches are kept, one for vector $a$ and one for vector $b$. Updates to each sketch take the form $(v, i[c]): \vec v[i] \leftarrow \vec v[i] + c$. To compute the estimated inner product $\widehat{\vec{a} \odot \vec{b}}$, we compute compute the inner product of each row pair $count_a[j] \odot count_b[j]$ for all $j \in d$, taking the minimum. Formally, the estimate for the inner product $\mathit{Q}(a,b)$ for non-negative vectors $\vec{a}$ and $\vec{b}$ is $\widehat{\vec{a} \odot \vec{b}} = \min_j(\widehat{\vec a \odot \vec b})_j$, where $(\widehat{\vec a \cdot \vec b})_j = \sum_{k=1}^w count_a[j,k] * count_b[j,k]$. In psuedocode form:\\
+        Two CM sketches are kept, one for vector $a$ and one for vector $b$.
+        Updates to each sketch take the form $(i_t,c_t)_v: count_v(j, h_j[i]) \leftarrow
+        count_v(j, h_j[i]) + c_t$. To compute the estimated inner product
+        $\widehat{\vec{a} \odot \vec{b}}$, we compute the inner product of each
+        row pair $count_a[j] \cdot count_b[j]$ for all $j \in d$, taking the
+        minimum. Formally, the estimate for the inner product
+        $\mathit{Q}(\vec{a},\vec{b})$ for non-negative vectors $\vec{a}$ and
+        $\vec{b}$ is $\widehat{\vec{a} \odot \vec{b}} = \min_j(\widehat{\vec a
+        \cdot \vec b})_j$, where $(\widehat{\vec a \cdot \vec b})_j =
+        \sum_{k=1}^w count_a[j,k] * count_b[j,k]$. In psuedocode form:\\
+        
 \begin{lstlisting}[escapeinside={(*}{*)}]
 Estimate_Inner_Product((*$count_a, count_b$*)): 
-    estimates (*$\leftarrow$*) (*$[]$*)
+    make empty set Estimates 
     for each row j, 1 (*$\leq$*) j (*$\leq$*) d:
-        estimates[j] (*$\leftarrow$*) (*$\sum_{k=1}^w$*) (*$count_a[j, k] * count_b[j,k]$*)
-    return min(estimates) 
+        Estimates[j] (*$\leftarrow$*) (*$\sum_{k=1}^w$*) (*$count_a[j, k] * count_b[j,k]$*)
+    return min(Estimates) 
 \end{lstlisting}
 \textbf{Theorem 3:}\\
         The estimate $\widehat{\vec{a} \odot \vec{b}}$ has the following guarantees:
         \begin{enumerate}[label=\textnormal{(\arabic*)}]
-            \item $\vec a \cdot \vec b \leq \widehat{\vec a \cdot \vec b}$
+            \item $\vec a \odot \vec b \leq \widehat{\vec a \odot \vec b}$
             \item with probability at least $1 - \delta$, 
             \begin{align}
-		        Pr(\widehat{\vec a \cdot \vec b} \leq \vec a \cdot \vec b + \varepsilon||\vec a||_1||\vec b||_1)
+		        Pr(\widehat{\vec a \odot \vec b} \leq \vec a \odot \vec b + \varepsilon||\vec a||_1||\vec b||_1)
             \end{align}
         \end{enumerate}
-
 	\subsection{Proof of Theorem 3}
 		We represent the estimated inner product as the sum of the true inner product and collisions. By the pairwise independence of all hash functions $h_j$, $1 \leq j \leq d$,
 		\begin{align}
@@ -334,24 +340,28 @@ Estimate_Inner_Product((*$count_a, count_b$*)):
         \end{align}
         Taking the expected value of the error term shows that the error is dependent on the probability of collision.
         \begin{align}
-		E\left[(\widehat{\vec a \cdot \vec b})_j - a \cdot b\right] &= E\left[\sum_{p \neq q, \,\, h_j(p)=h_j(q)} a_pb_q\right] \\
+		E\left[(\widehat{\vec a \cdot \vec b})_j - \vec a \cdot \vec b\right] &= E\left[\sum_{p \neq q, \,\, h_j(p)=h_j(q)} a_pb_q\right] \\
 		&= \sum_{p \neq q}Pr(h_j(p) = h_j(q))a_pb_q
         \end{align}
 
-        Using the results from Theorem 1, we know the probability of collision is $\varepsilon/\mathrm e$ where $\varepsilon$ is the parameter used during sketch construction.
+        Using the results from Theorem 1, we know the probability of collision is bounded by $\varepsilon/\mathrm e$ where $\varepsilon$ is the parameter used during sketch construction.
         \begin{align}
 		&\leq \sum_{p \neq q} \frac{\varepsilon}{\mathrm{e}}a_pb_q \\
-		&\leq \frac{\varepsilon}{\mathrm e}||a||_1||b||_1
+		E\left[(\widehat{\vec a \cdot \vec b})_j - \vec a \cdot \vec b\right]&\leq \frac{\varepsilon}{\mathrm e}||a||_1||b||_1
 		\end{align}
 		This follows by the treatment of the inner product computation as a series of point queries. Applying the Markov inequality we bound the probability of the error.
 		\begin{align}
-		Pr((\widehat{a \cdot b})_j - a \cdot b > \varepsilon ||a||_1||b||_1) &\leq \frac{E[\widehat{a \cdot b} - a \cdot b]}{||a||_1||b||_1} \\
+		Pr((\widehat{a \cdot b})_j - \vec a \cdot \vec b > \varepsilon ||a||_1||b||_1) &\leq \frac{E[\widehat{a \cdot b} - a \cdot b]}{\varepsilon||a||_1||b||_1} \\
 		&\leq \frac{\frac{\varepsilon}{\mathrm e}||a||_1||b||_1}{\varepsilon||a||_1||b||_1} \\
 		& \leq 1/e
         \end{align}
-        As defined in the construction of the CM sketch, $d = \ln 1/\delta$, so $\delta = e^{-d}$. The probability the error exceeds this threshold for a single estimator is less than $1/e$ as shown above. Since we take the minimum inner product as our estimate, we compute the probability all estimators exceed this threshold.
+        As defined in the construction of the CM sketch, $d = \ln 1/\delta$, so
+        $\delta = e^{-d}$. The probability the error exceeds this threshold for
+        a single estimator is less than or equal to $1/e$ as shown above. Since we take the
+        minimum inner product as our estimate, we compute the probability all
+        estimators exceed this threshold.
         \begin{align}
-        \bigcap_{1\leq j \leq d} Pr((\widehat{a \cdot b})_j - a \cdot b > \varepsilon ||a||_1||b||_1) &= \left(\frac{1}{\mathrm e}\right)^d \\
+        \bigcap_{1\leq j \leq d} Pr((\widehat{\vec a \cdot \vec b})_j - \vec a \cdot \vec b > \varepsilon ||a||_1||b||_1) &\leq \left(\frac{1}{\mathrm e}\right)^d \\
         &\leq \delta
         \end{align}
         for all $d > 0$.
@@ -362,35 +372,55 @@ A range query, denoted as: $\mathcal{Q}(l,r)$, requests the value:
 \begin{align*}
     a[l,r] = \sum_{i=l}^r a_i
 \end{align*}
-And we denote our estimator based on the CM sketch as: $\hat a[l,r]$. It is possible to simply query all values in the range, $\hat a[l,r] = \sum_{i=l}^r \hat a_i$, however, this query would take linear time with respect to the input. Additionally, our error bound would have an extra multiplicative term in the length of the range, $||[l,r]||_1$. We can utilize dyadic ranges to help address both of these issues.
+And we denote our estimator based on the CM sketch as: $\hat a[l,r]$. It is
+possible to simply query all values in the range, $\hat a[l,r] = \sum_{i=l}^r
+\hat a_i$, however, this query would take linear time with respect to the input.
+Additionally, our error bound would have an extra multiplicative term in the
+length of the range, $r - l$. We can utilize dyadic ranges to help address both
+of these issues.
 \subsection{Dyadic ranges}
-For any range, we can create a set of dyadic ranges by splitting the range in half to get two ranges of half the size. We can continually do this, until we have ranges of size 1. We can think of the construction of a set of dyadic ranges as creating a tree-like structure:
+For any range, we can create a set of dyadic ranges by splitting the range in
+half to get two ranges of half the size. We can continually do this, until we
+have ranges of size 1. We can think of the construction of a set of dyadic
+ranges as creating a tree-like structure:
 \begin{center}\includegraphics[scale=0.3]{dyadic_ranges.png}\end{center}
 \subsection{Range Query: updates}
-The update procedure is as follows: Keep $\log_2n$ CM sketches. Each CM sketch represents one level of our "tree" of dyadic ranges, and the keys for that CM sketch are the ranges within that level:
+The update procedure is as follows: Keep $\log_2n$ CM sketches. Each CM sketch
+represents one level of our ``tree'' of dyadic ranges, and the keys for that CM
+sketch are the ranges within that level, and the values are the sum of the counts for all
+values in the range of each key:
 \begin{center}\includegraphics[scale=0.3]{dyadic_ranges_cm.png}\end{center}
-When we get an update, $(i_t, c_t)$, we simply update each CM sketch, with the key as the range that covers the value $i_t$:
+When we get an update, $(i_t, c_t)$, we simply update each CM sketch, with the
+key as the range that covers the value $i_t$:
 \begin{center}\includegraphics[scale=0.3]{range_update.png}\end{center}
-We thus have the following pseudocode for an update:
-\newpage
+We thus have the following pseudocode for an update, where \texttt{counts} is
+all of the CM sketches in the tree, and $range_i(i_t)$ represents the dyadic
+range that contains $i_t$, for level $i$:
 \begin{lstlisting}[escapeinside={(*}{*)}]
 Range_Query_Update(counts, ((*$i_t, c_t$*)))
     for each sketch, (*$count_i \in$*) counts:
         Update_CM_Sketch((*$ count_i $*), ((*$range_i(i_t$*)), (*$c_t$*)))
     return counts;
 \end{lstlisting}
-Where $range_i(i_t)$ represents the dyadic range that contains $i_t$, for level $i$.
 \subsection{Range Query: estimation}
-Then, in order to estimate a range query, $\hat a[l,r]$, we identify which dyadic ranges contribute to our overall range, and query those in each appropriate CM sketch.
+Then, in order to estimate a range query, $\hat a[l,r]$, we identify which
+dyadic ranges contribute to our overall range, and query those in each
+appropriate CM sketch.
 \begin{center}\includegraphics[scale=0.3]{range_estimate.png}\end{center}
-A single range can be converted into at most $2\log_2n$ dyadic ranges, because in the worst case, both sides of the range (the upper and lower bound)  must fully travel through the height of the tree. Because we store each dyadic range as a key value in a CM sketch, we do a total of, at most, $2\log_2n$ point queries. We then sum together the point queries, to get our total range query estimate. In pseudocode form, the procedure for estimation is as follows:
+A single range can be converted into at most $2\log_2n$ dyadic ranges, because
+in the worst case, both sides of the range query (the upper bound $r$ and lower
+bound $l$)  must fully travel through the height of the tree. Because we store
+each dyadic range as a key value in a CM sketch, we do a total of, at most,
+$2\log_2n$ point queries. We then sum together the point queries, to get our
+total range query estimate. In pseudocode form, the procedure for estimation is
+as follows:
 \begin{lstlisting}[escapeinside={(*}{*)}]
-Estimate_Range_Query(counts, a[L,R], i, l, r) 
-    if (*$range(l,r) \in [L,R]$*):
-        return Estimate_Point_Query((*$count_i$*), range(l,r))
+Estimate_Range_Query(counts, a[l,r], i, x, y) 
+    if (*$range(x,y) \in [l,r]$*):
+        return Estimate_Point_Query((*$count_i$*), range(x,y))
     else:
-        return Estimate_Range_Query(counts, a[L,R], (*$i+1, l, \frac{l+r}{2}$*)) +
-            Estimate_Range_Query(counts, a[L,R], (*$i+1, \frac{l+r}{2} + 1, r$*))
+        return Estimate_Range_Query(counts, a[l,r], (*$i+1, x, \frac{x+y}{2}$*)) +
+            Estimate_Range_Query(counts, a[l,r], (*$i+1, \frac{x+y}{2} + 1, y$*))
 \end{lstlisting}
 Where $i$ denotes the level that we are looking at in our tree of dyadic ranges, $count_i$ represents the CM sketch of that level, and each recursive call simply alters the range we are looking for, along with going down one level in our tree.\\\\
 Finally, recall the idea behind using dyadic ranges: to reduce the estimation to be polylogarithmic in the size of the input. A single point query update/estimation takes $\log(\frac{1}{\delta})$ time. In order to do a single update, we update $O(\log n)$ CM sketches. When we estimate our range query, we do $O(\log n)$ point query estimations. Thus, for both an update and an estimation, our time is reduced to $O(\log(n)\log(\frac{1}{\delta}))$.
@@ -425,7 +455,7 @@ However, this is the error bound for a single estimator. Our CM sketch construct
     &\leq \delta
 \end{align*}
 Therefore, with probability at least $(1-\delta)$, $\hat a[l,r] \leq a[l,r] + 2\varepsilon \log n ||\bm{a}||_1$
-\section{Applications}
+\section{Applications}\label{sec:applications}
 \subsection{Quantiles in the turnstile model}
 Define the $\phi$-quantiles of the cardinality
 \begin{align}
