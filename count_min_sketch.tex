@@ -306,8 +306,15 @@ words, respectively.
 
 \section{Inner Product Query}
 	\subsection{Algorithm: Non-negative case}
-        Two CM sketches are kept, one for vector $a$ and one for vector $b$. Updates to each sketch take the form $(v, i[c]): \vec v[i] \leftarrow \vec v[i] + c$. To compute the estimated inner product $\widehat{\vec{a} \odot \vec{b}}$, we compute compute the inner product of each row pair $count_a[j] \odot count_b[j]$ for all $j \in d$, taking the minimum. Formally, the estimate for the inner product $\mathit{Q}(a,b)$ for non-negative vectors $\vec{a}$ and $\vec{b}$ is $\widehat{\vec{a} \odot \vec{b}} = \min_j(\widehat{\vec a \odot \vec b})_j$, where $(\widehat{\vec a \cdot \vec b})_j = \sum_{k=1}^w count_a[j,k] * count_b[j,k]$. \\
-        \textbf{Theorem 3:}\\
+        Two CM sketches are kept, one for vector $a$ and one for vector $b$. Updates to each sketch take the form $(v, i[c]): \vec v[i] \leftarrow \vec v[i] + c$. To compute the estimated inner product $\widehat{\vec{a} \odot \vec{b}}$, we compute compute the inner product of each row pair $count_a[j] \odot count_b[j]$ for all $j \in d$, taking the minimum. Formally, the estimate for the inner product $\mathit{Q}(a,b)$ for non-negative vectors $\vec{a}$ and $\vec{b}$ is $\widehat{\vec{a} \odot \vec{b}} = \min_j(\widehat{\vec a \odot \vec b})_j$, where $(\widehat{\vec a \cdot \vec b})_j = \sum_{k=1}^w count_a[j,k] * count_b[j,k]$. In psuedocode form:\\
+\begin{lstlisting}[escapeinside={(*}{*)}]
+Estimate_Inner_Product((*$count_a, count_b$*)): 
+    estimates (*$\leftarrow$*) (*$[]$*)
+    for each row j, 1 (*$\leq$*) j (*$\leq$*) d:
+        estimates[j] (*$\leftarrow$*) (*$\sum_{k=1}^w$*) (*$count_a[j, k] * count_b[j,k]$*)
+    return min(estimates) 
+\end{lstlisting}
+\textbf{Theorem 3:}\\
         The estimate $\widehat{\vec{a} \odot \vec{b}}$ has the following guarantees:
         \begin{enumerate}[label=\textnormal{(\arabic*)}]
             \item $\vec a \cdot \vec b \leq \widehat{\vec a \cdot \vec b}$
@@ -328,14 +335,14 @@ words, respectively.
 		&= \sum_{p \neq q}Pr(h_j(p) = h_j(q))a_pb_q
         \end{align}
 
-        Using the results from Theorem 1, we know the probability of collision is $\varepsilon/\mathrm r$ where $\varepsilon$ is the parameter used during sketch construction.
+        Using the results from Theorem 1, we know the probability of collision is $\varepsilon/\mathrm e$ where $\varepsilon$ is the parameter used during sketch construction.
         \begin{align}
 		&\leq \sum_{p \neq q} \frac{\varepsilon}{\mathrm{e}}a_pb_q \\
 		&\leq \frac{\varepsilon}{\mathrm e}||a||_1||b||_1
 		\end{align}
 		This follows by the treatment of the inner product computation as a series of point queries. Applying the Markov inequality we bound the probability of the error.
 		\begin{align}
-		Pr(\widehat({a \cdot b})_j - a \cdot b > \varepsilon ||a||_1||b||_1) &\leq \frac{E[\widehat{a \cdot b} - a \cdot b]}{||a||_1||b||_1} \\
+		Pr((\widehat{a \cdot b})_j - a \cdot b > \varepsilon ||a||_1||b||_1) &\leq \frac{E[\widehat{a \cdot b} - a \cdot b]}{||a||_1||b||_1} \\
 		&\leq \frac{\frac{\varepsilon}{\mathrm e}||a||_1||b||_1}{\varepsilon||a||_1||b||_1} \\
 		& \leq 1/e
         \end{align}
@@ -352,9 +359,9 @@ A range query, denoted as: $\mathcal{Q}(l,r)$, requests the value:
 \begin{align*}
     a[l,r] = \sum_{i=l}^r a_i
 \end{align*}
-And we denote our estimator based on the CM sketch as: $\hat a[l,r]$. It is possible to simply query all values in the range, $\hat a[l,r] = \sum_{i=l}^r \hat a_i$, however, this query would take linear time with respect to the input. Additionally, our error bound would be in terms of the length of the range. However, we want all of our queries to run in polylogarithmic time, as well as have error bounds in terms of the size of the input, $||a||_1$. Thus, we can utilize dyadic ranges to help address both of these issues.
+And we denote our estimator based on the CM sketch as: $\hat a[l,r]$. It is possible to simply query all values in the range, $\hat a[l,r] = \sum_{i=l}^r \hat a_i$, however, this query would take linear time with respect to the input. Additionally, our error bound would be in terms of the length of the range. However, we want all of our queries to run in polylogarithmic time, as well as have error bounds in terms of the size of the input. Thus, we can utilize dyadic ranges to help address both of these issues.
 \subsection{Dyadic ranges}
-For any range, we can create a set of dyadic ranges by splitting the range in half to get two ranges of half the size. We can continually do this, until we have ranges of size 1. We can think of the construction of a set of dyadic ranges like creating a tree-like structure:
+For any range, we can create a set of dyadic ranges by splitting the range in half to get two ranges of half the size. We can continually do this, until we have ranges of size 1. We can think of the construction of a set of dyadic ranges as creating a tree-like structure:
 \begin{center}\includegraphics[scale=0.3]{dyadic_ranges.png}\end{center}
 \subsection{Range Query: updates}
 The update procedure is as follows: Keep $\log_2n$ CM sketches. Each CM sketch represents one level of our "tree" of dyadic ranges, and the keys for that CM sketch are the ranges within that level:
@@ -362,53 +369,62 @@ The update procedure is as follows: Keep $\log_2n$ CM sketches. Each CM sketch r
 When we get an update, $(i_t, c_t)$, we simply update each CM sketch, with the key as the range that covers the value $i_t$:
 \begin{center}\includegraphics[scale=0.3]{range_update.png}\end{center}
 We thus have the following pseudocode for an update:
+\newpage
 \begin{lstlisting}[escapeinside={(*}{*)}]
 Range_Query_Update(counts, ((*$i_t, c_t$*)))
     for each sketch, (*$count_i \in$*) counts:
-        Update_CM_Sketch(range((*$i_t$*)), (*$c_t$*))
+        Update_CM_Sketch((*$ count_i $*), ((*$range_i(i_t$*)), (*$c_t$*)))
     return counts;
 \end{lstlisting}
+Where $range_i(i_t)$ represents the dyadic range that contains $i_t$, for level $i$.
 \subsection{Range Query: estimation}
 Then, in order to estimate a range query, $\hat a[l,r]$, we identify which dyadic ranges contribute to our overall range, and query those in each appropriate CM sketch.
 \begin{center}\includegraphics[scale=0.3]{range_estimate.png}\end{center}
-A single range query can be converted into at most $2\log_2n$ dyadic range queries, because in the worst case, both sides of the range must fully travel through the height of the tree. Because we store each dyadic range as a key value in a CM sketch, we do a total of, at most, $2\log_2n$ point queries. We then sum together the point queries, to get our total range query estimate. In pseudocode form, the procedure for estimation is as follows:
+A single range can be converted into at most $2\log_2n$ dyadic ranges, because in the worst case, both sides of the range (the upper and lower bound)  must fully travel through the height of the tree. Because we store each dyadic range as a key value in a CM sketch, we do a total of, at most, $2\log_2n$ point queries. We then sum together the point queries, to get our total range query estimate. In pseudocode form, the procedure for estimation is as follows:
 \begin{lstlisting}[escapeinside={(*}{*)}]
-Estimate_Range_Query(counts, a[l,r])
-    (*$s \leftarrow 0$*)
-    for each sketch, (*$count_i \in$*) counts:
-        if (*$a[l,r] \in count_i$*):
-            (*$s \leftarrow s$*) +  Estimate_Point_Query(range(l,r))
-        else:
-            for all subranges, (*$(l_i, r_i)$*) in [l,r]:
-                if ((*$(l_i, r_i) \in count_i$*):
-                    (*$s \leftarrow s$*) +  Estimate_Point_Query(range((*$l_i,r_i$*)))
-    return s;
+Estimate_Range_Query(counts, a[L,R], i, l, r) 
+    if (*$range(l,r) \in [L,R]$*):
+        return Estimate_Point_Query((*$count_i$*), range(l,r))
+    else:
+        return Estimate_Range_Query(counts, a[L,R], (*$i+1, l, \frac{l+r}{2}$*)) +
+            Estimate_Range_Query(counts, a[L,R], (*$i+1, \frac{l+r}{2} + 1, r$*))
 \end{lstlisting}
-Finally, recall the idea behind using dyadic ranges: to reduce the estimation to be polylogarithmic in the size of the input. A single point query update/estimation takes $\log(\frac{1}{\delta})$ time. In order to do a single update, we update $O(\log n)$ CM sketches. When we estimate our range query, we do $O(\log n)$ point query estimations. Thus, for both an update and an estimation, our time is reduced to: $O(\log(n)\log(\frac{1}{\delta}))$.\\
-    \textbf{Theorem 4: }\
+Where $i$ denotes the level that we are looking at in our tree of dyadic ranges, $count_i$ represents the CM sketch of that level, and each recursive call simply alters the range we are looking for, along with going down one level in our tree.\\\\
+Finally, recall the idea behind using dyadic ranges: to reduce the estimation to be polylogarithmic in the size of the input. A single point query update/estimation takes $\log(\frac{1}{\delta})$ time. In order to do a single update, we update $O(\log n)$ CM sketches. When we estimate our range query, we do $O(\log n)$ point query estimations. Thus, for both an update and an estimation, our time is reduced to: $O(\log(n)\log(\frac{1}{\delta}))$.
+\subsection{Theorem 4: }
 \begin{enumerate}[label=\textnormal{(\arabic*)}]
     \item $a[l,r] \leq \hat a[l,r]$.\\
     \item With probability at least $(1-\delta)$, $\hat a[l,r] \leq a[l,r] + 2\varepsilon \log n ||\bm{a}||_1$
 \end{enumerate}
     \textbf{Proof:}\\
-Our procedure for estimation covers exactly the range [l,r]. We are summing up multiple point queries, and thus, based on the previous proof, (1) holds. For (2):
+Our procedure for estimation covers exactly the range [l,r]. We are summing up multiple point queries, and thus, based on the previous proof, (1) holds. In order to show (2), the following notation will be used:
 \begin{align*}
-    \hat a[l,r] &= \sum_{i = l}^r a_i + \sum_{i \neq j, h(i)=h(j)} a_i\\
-    E[\hat a[l,r] - a[l,r]] &= E[\sum_{i=1}^r a_i + \sum_{i \neq j, h(i)=h(j)} a_i - \sum_{i=1}^r a_i]\\
-    &= E[\sum_{i \neq j, h(i)=h(j)} a_i]\\
-    &= \sum_{i \neq j}Pr(h(i) = h(j)) a_i\\
-    &\leq \sum_{i!=j} \frac{\varepsilon}{e} a_i\\
-    &\leq 2\frac{\varepsilon}{e} \log n ||a||_1
+    range[l,r] &= \text{The range from l through r}\\
+    range_i &= \text{A dyadic range.}\\
+    \bigcup_{range_i \in range[l,r]} range_i &= \text{A set of non-overlapping dyadic ranges that exactly cover range[l,r]}\\
 \end{align*}
-Where the error bound above is derived from the linearity of expectation from $2\log n$ point queries. Thus, the probability bound is as follows:
+Thus, we show:
 \begin{align*}
-    p(\hat a[l,r] - a[l,r] > 2\varepsilon \log n ||a||_1) &\leq \frac{E[\hat a[l,r] - a[l,r]]}{2\varepsilon \log n||a||_1}\\
-    &\leq \frac{2\frac{\varepsilon}{e}\log n ||a||_1}{2\varepsilon \log n ||a||_1}\\
-    &\leq \frac{1}{e}\\
+    \hat a[l,r] &= \sum_{range_i \in range[l,r]} a_{range_i} + \sum_{i \neq k, h_j(range_i) = h_j(range_k)} a_{range_i}\\
+    E[\hat a_j[l,r] - a[l,r]] &= E[\sum_{i=1}^r a_{range_i} + \sum_{i \neq k, h_j(range_i)=h_j(range_k)} a_{range_i} - \sum_{i=1}^r a_{range_i}]\\
+    &= E[\sum_{i \neq k, h_j(i)=h_j(k)} a_{range_i}]\\
+    &= \sum_{i \neq k}Pr(h_j(range_i) = h_j(range_k)) a_{range_i}\\
+    &\leq \sum_{i!=k} \frac{\varepsilon}{\mathrm e} a_{range_i}\\
+    &\leq 2\frac{\varepsilon}{\mathrm e} \log n ||a||_1
+\end{align*}
+Where the error probability of a collision for a single point query is defined as $\frac{\varepsilon}{\mathrm e}$ (shown in theorem 1). We do at most $2log_2n$ point queries, and thus, the error bound is defined as above. We can then use the markov inequality to bound the error:
+\begin{align*}
+    p(\hat a_j[l,r] - a[l,r] > 2\varepsilon \log n ||a||_1) &\leq \frac{E[\hat a_j[l,r] - a[l,r]]}{2\varepsilon \log n||a||_1}\\
+    &\leq \frac{2\frac{\varepsilon}{\mathrm e}\log n ||a||_1}{2\varepsilon \log n ||a||_1}\\
+    &\leq \frac{1}{\mathrm e}
+\end{align*}
+However, this is the error bound for a single estimator. Our CM sketch construction uses d rows, and thus, to bound the error, we need to find the probability that all of our estimators exceed the threshold:
+\begin{align*}
+    \bigcap_{1\leq j \leq d} Pr(\hat a_j[l,r] - a[l,r] > 2\varepsilon \lg n ||\bm{a}||_1) &\leq \left(\frac{1}{\mathrm e}\right)^d = (\mathrm e)^{-d}\\
     &\leq \delta
 \end{align*}
+Therefore, with probability at least $(1-\delta)$, $\hat a[l,r] \leq a[l,r] + 2\varepsilon \log n ||\bm{a}||_1$
 \section{Applications}
-
 \subsection{Quantiles in the turnstile model}
 Define the $\phi$-quantiles of the cardinality
 \begin{align}
