@@ -140,7 +140,6 @@ Update_CM_Sketch(count, (*$(i_t, c_t)$*))
     for each row j, 1 (*$\leq$*) j (*$\leq$*) d:
         count[j, (*$h_j(i)$*)] (*$\leftarrow$*) count[j, (*$h_j(i)$*)] + (*$c_t$*)
     return count 
-    
 \end{lstlisting}
 
 \comment{
@@ -176,10 +175,7 @@ Estimate_Point_Query(count, (*$i_t$*))
 \textbf{Theorem 1:} The estimate $\hat a_i$ has the following guarantees:
 \begin{enumerate}[label=\textnormal{(\arabic*)}]
     \item $a_i \leq \hat{a}_i$
-    \item with probability at least $1 - \delta$, 
-    \begin{align}
-        \hat{a}_i \leq a_i + \varepsilon ||\vec{a}||_1 
-    \end{align}
+    \item with probability at least $1 - \delta$, $\hat{a}_i \leq a_i + \varepsilon ||\vec{a}||_1$
 \end{enumerate}
 \subsubsection{Proof of Theorem 1}
 First, we prove 1.a.  
@@ -198,9 +194,9 @@ Since, to begin with, we chose all $h_j$ from a 2-universal hash family
 with range $1 \leq h_j \leq d = \ceil{\frac{e}{\varepsilon}}$ 
 we know that, for $i \neq k$,
 \begin{align}\label{eq:collision-prob}
-    Pr(h_j(i) = h_j(k)) \leq \frac{1}{\text{range}(h_j)} = 1/\ceil{\frac{e}{\varepsilon}} = \ceil{\frac{\varepsilon}{e}}
+    &Pr(h_j(i) = h_j(k)) \leq \frac{1}{\text{range}(h_j)} = 1/\ceil{\frac{e}{\varepsilon}} = \floor{\frac{\varepsilon}{e}} \nonumber\\
+    \implies &E(I_{i, j, k}) \leq \frac{\varepsilon}{e}
 \end{align}
-% how do they get rid of ceil??
 by the properties of a 2-universal hash function and by our choice of hash function
 range.
 
@@ -234,16 +230,16 @@ where $X_i$s may be dependent. Applying linearity of expectations here, we have:
     E(\sum_{k = 1}^{n} a_k I_{i, j, k}) = \sum_{k = 1}^{n} a_k E(I_{i, j, k}) 
 \end{align}
 % why less than equals, why not just equals?
-We calculated $E(I_{i, j, k}) \leq \ceil{\frac{\varepsilon}{e}}$ above, so 
+We showed $E(I_{i, j, k}) \leq \frac{\varepsilon}{e}$ in Equation \ref{eq:collision-prob}, so 
 we have
 \begin{align}
-    \sum_{k = 1}^{n} a_k E(I_{i, j, k})  \leq\sum_{k = 1}^{n} a_k \ceil{\frac{\varepsilon}{e}}
+    \sum_{k = 1}^{n} a_k E(I_{i, j, k})  \leq\sum_{k = 1}^{n} a_k \frac{\varepsilon}{e}
 \end{align}
 and finally, since $||\vec{a}||_1 = \sum_{k = 1}^{n} |a_k| = \sum_{k = 1}^{n} a_k$
 (all $a_k$ are assumed to be non-negative)
 \begin{align}\label{eqn:expectation-bound}
-    \sum_{k = 1}^{n} a_k \ceil{\frac{\varepsilon}{e}} = \ceil{\frac{\varepsilon}{e}} ||\vec{a}|||_1 \nonumber \\
-    \implies E(X_{i, j}) \leq \ceil{\frac{\varepsilon}{e}} ||\vec{a}||_1 
+    \sum_{k = 1}^{n} a_k \frac{\varepsilon}{e} = \frac{\varepsilon}{e} ||\vec{a}|||_1 \nonumber \\
+    \implies E(X_{i, j}) \leq \frac{\varepsilon}{e} ||\vec{a}||_1 
 \end{align}
 We will use this result in the following proof.
 
@@ -275,10 +271,17 @@ Since this is the non-negative case and thus $X_{i, j}$ is non-negative, we can 
     \implies Pr[\forall_{j \cdot} X_{i, j} > e E(X_{i, j})] \comment{\leq \frac{E(X_{i, j})}{a_i + \varepsilon||a||_1} \leq \frac{\ceil{\frac{\varepsilon}{e}} ||\vec{a}||_1}{a_i + \varepsilon||a||_1}}
       < e^{-d} < \delta
 \end{align}
-This estimate is calculated in $O(\ln \frac{1}{\delta})$ as the minimum of a multiset can be taken in linear time, and we are taking it across $d = O(\ln \frac{1}{\delta})$ rows for the point query.  The update time to maintain the data structure after each update is also $O(\ln \frac{1}{\delta})$, since we hash a single value in each row of the data structure.
+This estimate is calculated in $O(\ln \frac{1}{\delta})$ as the minimum of a
+multiset can be taken in linear time, and we are taking it across $d = O(\ln
+\frac{1}{\delta})$ rows for the point query.  The update time to maintain the
+data structure after each update is also $O(\ln \frac{1}{\delta})$, since we
+hash a single value in each row of the data structure.
 
-The space complexity is $\left(2 + \ceil{\frac{e}{\varepsilon}}\right)\ceil{\ln \frac{1}{\delta}}$ words, as the dimensions of the matrix are 
-$w \times d = \ceil{\frac{e}{\varepsilon}}\times\ceil{\ln \frac{1}{\delta}}$.
+The space complexity is $O\left({\frac{e}{\varepsilon}}{\ln
+\frac{1}{\delta}}\right)$ words, as the dimensions of the matrix are $w \times d =
+\ceil{\frac{e}{\varepsilon}}\times\ceil{\ln \frac{1}{\delta}}$.  $O(\ln
+\frac{1}{\delta})$ is also required to store the hash functions.  The constants
+are clearly small, since this is the total space requirement.
 
 \begin{comment}
 All previous analyses of sketch algorithm use Chebyshev in their estimation analysis, yielding a dependency on
@@ -302,7 +305,7 @@ bounds. TODO more details
 
 The time and space complexity are the same as the non-negative case: $O(\ln
 \frac{1}{\delta})$ time and $(2 + \frac{e}{\varepsilon})\ln \frac{1}{\delta}$
-words, respectively. 
+words, respectively. {
 
 \section{Inner Product Query}
 	\subsection{Algorithm: Non-negative case}
