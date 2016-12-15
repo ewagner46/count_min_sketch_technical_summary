@@ -332,10 +332,7 @@ Estimate_Inner_Product((*$count_a, count_b$*)):
         The estimate $\widehat{\vec{a} \odot \vec{b}}$ has the following guarantees:
         \begin{enumerate}[label=\textnormal{(\arabic*)}]
             \item $\vec a \odot \vec b \leq \widehat{\vec a \odot \vec b}$
-            \item with probability at least $1 - \delta$, 
-            \begin{align}
-		        Pr(\widehat{\vec a \odot \vec b} \leq \vec a \odot \vec b + \varepsilon||\vec a||_1||\vec b||_1)
-            \end{align}
+            \item $ Pr(\widehat{\vec a \odot \vec b} \leq \vec a \odot \vec b + \varepsilon||\vec a||_1||\vec b||_1) \geq 1-\delta$
         \end{enumerate}
 	\subsection{Proof of Theorem 3}
 		We represent the estimated inner product as the sum of the true inner product and collisions. By the pairwise independence of all hash functions $h_j$, $1 \leq j \leq d$,
